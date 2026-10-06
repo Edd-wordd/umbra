@@ -10,6 +10,7 @@
  */
 import { shortCwd } from "../dev/format";
 import { classifyCommand } from "../dev/risk";
+import { createServicePayloads } from "./services";
 import type {
   AgentKind,
   AgentSession,
@@ -240,7 +241,6 @@ export function createDevSnapshot(now: number): DevSnapshot {
       failing: [],
       at: now - 2 * MIN,
     },
-    { id: "ci-umbra-41", repo: "umbra", branch: "main", number: 41, status: "passed", summary: "212 passed", failing: [], at: now - 52 * MIN },
   ];
 
   return {
@@ -248,21 +248,7 @@ export function createDevSnapshot(now: number): DevSnapshot {
     sessions,
     servers,
     ci,
-    sentry: {
-      "SAMPLE-7Q": {
-        id: "SAMPLE-7Q",
-        project: "parallax",
-        title: "TypeError: Cannot read properties of undefined (reading 'transit')",
-        count24h: 23,
-        firstSeen: "10-04 21:12",
-        excerpt: [
-          "TypeError: Cannot read properties of undefined (reading 'transit')",
-          "  at sortByTransit (src/lib/targets.ts:88:31)",
-          "  at Array.sort (<anonymous>)",
-          "  at TonightList (src/app/tonight/page.tsx:24:18)",
-        ],
-      },
-    },
+    services: createServicePayloads(now),
     handoff: {
       at: now - 55 * MIN,
       items: [

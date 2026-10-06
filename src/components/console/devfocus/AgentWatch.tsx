@@ -10,8 +10,7 @@ function AgentRow({ a, selected, now }: { a: AgentSession; selected: boolean; no
   const select = useDevStore((s) => s.select);
   const respond = useDevStore((s) => s.respondPrompt);
   const reviewDiff = useDevStore((s) => s.reviewDiff);
-  const toggleSentry = useDevStore((s) => s.toggleSentry);
-  const sentryOpen = useDevStore((s) => s.sentryOpen);
+
   const tone = AGENT_TONE[a.state];
   const elapsed = formatElapsed((a.endedAt ?? (now || a.startedAt)) - a.startedAt);
 
@@ -44,9 +43,9 @@ function AgentRow({ a, selected, now }: { a: AgentSession; selected: boolean; no
       <Btn
         onClick={() => {
           select(a.sessionId);
-          if (!sentryOpen) toggleSentry(sentryId);
+          useDevStore.setState({ expandedProject: a.repo, pickerFor: null });
         }}
-        title={`linked sentry issue ${sentryId}`}
+        title={`linked sentry issue ${sentryId} · opens ${a.repo} services`}
       >
         ≈ {sentryId}
       </Btn>
@@ -91,9 +90,9 @@ export default function AgentWatch() {
   const selectedId = useDevStore((s) => s.selectedId);
   const now = useNow();
   return (
-    <section aria-label="agent watch">
+    <section aria-label="agent watch" className="flex min-h-[124px] shrink flex-col">
       <SectionHead title="AGENT WATCH" meta={`${agents.length} sessions · cursor / codex / pi`} />
-      <ul role="listbox" aria-label="agents" className="-mx-[12px] mt-[6px] max-h-[236px] overflow-y-auto">
+      <ul role="listbox" aria-label="agents" className="-mx-[12px] mt-[6px] min-h-0 flex-1 overflow-y-auto">
         {agents.map((a) => (
           <AgentRow key={a.id} a={a} selected={a.sessionId === selectedId} now={now} />
         ))}

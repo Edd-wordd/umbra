@@ -6,10 +6,10 @@ import { useUmbra } from "@/lib/store";
 import { formatClock } from "@/lib/time";
 import ActivityLog from "./ActivityLog";
 import AgentWatch from "./AgentWatch";
-import CiPanel from "./CiPanel";
 import Dispatch from "./Dispatch";
 import Handoff from "./Handoff";
-import SentryDrawer from "./SentryDrawer";
+import ProjectDrawer from "./ProjectDrawer";
+import Projects from "./Projects";
 import Servers from "./Servers";
 import Terminal from "./Terminal";
 import { DEV_FOCUS, devFocusWidthCss } from "./layout";
@@ -64,13 +64,13 @@ export default function DevFocus() {
         style={{ left: DEV_FOCUS.left, top: DEV_FOCUS.top, bottom: DEV_FOCUS.bottom, width: devFocusWidthCss }}
       >
         <span className="glow-active absolute -left-px top-[-1px] bottom-[-1px] w-px bg-active/70" />
-        <header className="flex items-start justify-between px-5 pb-[12px] pt-[16px]">
+        <header className="flex items-start justify-between px-5 pb-[12px] pt-[16px] [@media(max-height:940px)]:pt-[12px]">
           <div>
             <div className="flex items-baseline gap-[18px]">
               <h2 className="text-[12px] font-normal tracking-[4px] text-active">DEV · FOCUS</h2>
               <Summary />
             </div>
-            <p className="mt-[8px] text-[9.5px] text-dim">
+            <p className="mt-[8px] text-[9.5px] text-dim [@media(max-height:940px)]:hidden">
               opened {formatClock(new Date(since))} · stays awake while open · esc closes · ⌘K for dev tools
             </p>
           </div>
@@ -83,16 +83,16 @@ export default function DevFocus() {
         </header>
 
         <div className="flex min-h-0 flex-1 border-t border-line">
-          <div className="flex w-[41%] min-w-[360px] max-w-[430px] shrink-0 flex-col gap-[13px] overflow-y-auto border-r border-line px-5 py-[13px] [&>section+section]:border-t [&>section+section]:border-line [&>section+section]:pt-[13px]">
+          <div className="flex w-[41%] min-w-[360px] max-w-[430px] shrink-0 flex-col gap-[13px] overflow-y-auto [@media(max-height:940px)]:gap-[10px] [@media(max-height:940px)]:py-[10px] border-r border-line px-5 py-[13px] [&>section+section]:border-t [&>section+section]:border-line [&>section+section]:pt-[13px]">
             <AgentWatch />
             <Dispatch />
             <Servers />
-            <CiPanel />
+            <Projects />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[14px] px-5 py-[14px]">
             <Handoff />
             <Terminal />
-            <SentryDrawer />
+            <ProjectDrawer />
           </div>
         </div>
 

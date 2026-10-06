@@ -54,25 +54,6 @@ export const TOOLS: readonly Tool[] = [
       return { ok: true, message: "print rail" };
     },
   },
-  {
-    id: "dev.prs.open",
-    domain: "dev",
-    title: "Open pull requests",
-    risk: "read",
-    keywords: ["github", "pr", "review"],
-    run: async (ctx) => {
-      ctx.wakeRail("dev");
-      return { ok: true, message: "dev rail · pull requests" };
-    },
-  },
-  {
-    id: "dev.ci.rerun",
-    domain: "dev",
-    title: "Rerun failing CI (deadbridge)",
-    risk: "confirm",
-    keywords: ["github", "actions", "tests"],
-    run: stub("ci rerun requested (stub)"),
-  },
   ...DEV_TOOLS,
   {
     id: "lab.adguard.pause",

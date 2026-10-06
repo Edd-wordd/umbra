@@ -2,6 +2,7 @@
 
 import { SERVER_TONE } from "@/lib/dev/format";
 import { useDevStore } from "@/lib/dev/store";
+import type { DockerPayload } from "@/lib/dev/services/docker";
 import type { DevServer } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
 import { ApprovalStrip, Btn, Dot, SectionHead, TEXT_TONE } from "./ui";
@@ -13,6 +14,10 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
   const pending = useDevStore((st) => st.pending);
   const tone = SERVER_TONE[s.state];
   const holding = pending?.origin === "ports" && pending.args?.port === String(s.port);
+  // Containers tied to this project sit next to its dev server (only if the project uses docker).
+  const usesDocker = useDevStore((st) => !!s.repo && !!st.projects.find((p) => p.repo === s.repo)?.services.includes("docker"));
+  const dockerPayload = useDevStore((st) => (s.repo ? st.services.docker?.[s.repo] : undefined)) as DockerPayload | undefined;
+  const containers = usesDocker ? dockerPayload?.containers ?? [] : [];
 
   const label =
     s.state === "stale" ? "STALE" : s.state === "free" ? "FREE" : s.state === "starting" ? "STARTING" : s.state.toUpperCase();
@@ -47,6 +52,17 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
           )}
         </span>
       </div>
+      {containers.length > 0 && (
+        <div className="flex h-[18px] items-center gap-[10px] pl-[73px] pr-[12px] text-[9.5px] text-dim" data-containers={s.repo}>
+          <span className="text-ghost">docker</span>
+          {containers.map((c) => (
+            <span key={c.name} className={`flex items-center gap-[4px] ${c.state === "running" ? "" : c.state === "restarting" ? "text-attention" : "text-broken"}`}>
+              <span className={`h-[3px] w-[3px] rounded-full ${c.state === "running" ? "bg-mid" : c.state === "restarting" ? "bg-attention" : "bg-broken"}`} />
+              {c.name}
+            </span>
+          ))}
+        </div>
+      )}
       {holding && pending && (
         <div className="px-[12px] pb-[6px] pt-[2px]">
           <ApprovalStrip command={pending.command} reason={pending.reason} onApprove={() => void approvePending()} onDeny={denyPending} />
@@ -62,7 +78,7 @@ export default function Servers() {
   const selectedId = useDevStore((s) => s.selectedId);
   const running = servers.filter((s) => s.state === "running").length;
   return (
-    <section aria-label="dev servers">
+    <section aria-label="dev servers" className="shrink-0">
       <SectionHead title="DEV SERVERS · PORTS" meta={`${running} running · lsof via mac helper`} />
       <ul className="-mx-[12px] mt-[6px]">
         {servers.map((s) => (

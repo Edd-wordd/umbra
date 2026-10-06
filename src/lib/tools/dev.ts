@@ -18,6 +18,19 @@ export const DEV_TOOLS: readonly Tool[] = [
     },
   },
   {
+    id: "dev.projects.open",
+    domain: "dev",
+    title: "Open Dev projects (services per repo)",
+    risk: "read",
+    keywords: ["github", "sentry", "posthog", "supabase", "docker", "figma", "projects", "repos"],
+    run: async (ctx) => {
+      ctx.wakeRail("dev");
+      const repo = ctx.args?.repo;
+      if (repo) useDevStore.setState({ expandedProject: repo, pickerFor: null });
+      return { ok: true, message: repo ? `dev · ${repo} services` : "dev projects" };
+    },
+  },
+  {
     id: "dev.tests.run",
     domain: "dev",
     title: "Run parallax tests",
@@ -36,6 +49,29 @@ export const DEV_TOOLS: readonly Tool[] = [
     risk: "confirm",
     keywords: ["kill", "port", "3000", "process", "next dev"],
     run: async (ctx) => useDevStore.getState().killPort(Number(ctx.args?.port ?? 3000), { approved: ctx.approved, source: ctx.source }),
+  },
+  {
+    id: "dev.ci.rerun",
+    domain: "dev",
+    title: "Rerun failing CI (parallax)",
+    risk: "confirm",
+    keywords: ["github", "actions", "tests", "ci"],
+    run: async (ctx) => {
+      useDevStore.getState().runTests(ctx.args?.repo ?? "parallax", ctx.source);
+      return { ok: true, message: "SAMPLE · parallax ci rerun requested" };
+    },
+  },
+  {
+    id: "dev.link.open",
+    domain: "dev",
+    title: "Open service link (repo, Sentry issue, dashboard…)",
+    risk: "read",
+    keywords: ["open", "link", "browser"],
+    run: async (ctx) => {
+      const label = ctx.args?.label ?? "link";
+      useDevStore.getState().log(ctx.source, `open ${label} ↗ · sample, no browser`, "info");
+      return { ok: true, message: `SAMPLE · would open ${label}` };
+    },
   },
   {
     id: "dev.sessions.resume",

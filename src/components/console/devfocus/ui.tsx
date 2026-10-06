@@ -105,3 +105,47 @@ export function ApprovalStrip({
     </div>
   );
 }
+
+const CHIP: Record<DevTone, string> = {
+  active: "border-active/60 text-active",
+  attention: "border-attention/70 text-attention",
+  broken: "border-broken/70 text-broken",
+  mid: "border-line-strong text-mid",
+  dim: "border-line text-dim",
+};
+const GLYPH: Partial<Record<DevTone, string>> = { active: "◌", attention: "!", broken: "✕" };
+
+/** Service chip on a project row. Color only when the service needs attention or is running. */
+export function Chip({ label, tone, title, onClick }: { label: string; tone: DevTone; title?: string; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      className={`flex h-[16px] shrink-0 items-center gap-[4px] border px-[5px] text-[9px] leading-none transition-colors hover:text-ink ${CHIP[tone]}`}
+    >
+      {label}
+      {GLYPH[tone] && <span className="text-[8px]">{GLYPH[tone]}</span>}
+    </button>
+  );
+}
+
+/** Tiny 1px trend line (no chart lib). */
+export function Spark({ values, tone = "mid", width = 64, height = 14 }: { values: number[]; tone?: DevTone; width?: number; height?: number }) {
+  if (values.length < 2) return null;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const pts = values
+    .map((v, i) => `${((i / (values.length - 1)) * (width - 2) + 1).toFixed(1)},${(height - 1 - ((v - lo) / (hi - lo || 1)) * (height - 2)).toFixed(1)}`)
+    .join(" ");
+  const last = pts.split(" ").at(-1)!.split(",");
+  return (
+    <svg width={width} height={height} className={`shrink-0 ${TEXT_TONE[tone]}`} aria-hidden>
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.7} />
+      <circle cx={last[0]} cy={last[1]} r={1.6} fill="currentColor" />
+    </svg>
+  );
+}

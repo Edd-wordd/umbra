@@ -29,7 +29,7 @@ export default function ActivityLog() {
         <div className="tracking-[2px] text-mid">ACTIVITY</div>
         <div className="text-dim">{activity.length} today</div>
       </div>
-      <ol ref={ref} className="h-[64px] min-w-0 flex-1 overflow-y-auto text-[10px] leading-[16px]" data-activity>
+      <ol ref={ref} className="h-[64px] min-w-0 flex-1 overflow-y-auto [@media(max-height:940px)]:h-[32px] text-[10px] leading-[16px]" data-activity>
         {activity.map((e) => {
           const r = RESULT[e.result];
           return (

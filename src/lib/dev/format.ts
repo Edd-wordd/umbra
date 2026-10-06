@@ -33,3 +33,12 @@ export const SERVER_TONE: Record<ServerState, DevTone> = {
 };
 
 export const CI_TONE: Record<CiStatus, DevTone> = { passed: "mid", failed: "broken", running: "active" };
+
+/** 40s ago · 18m ago · 3h ago · 6d ago */
+export function formatAge(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}

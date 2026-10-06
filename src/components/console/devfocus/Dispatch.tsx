@@ -14,7 +14,7 @@ export default function Dispatch() {
   const [task, setTask] = useState("");
 
   return (
-    <section aria-label="dispatch">
+    <section aria-label="dispatch" className="shrink-0">
       <SectionHead title="SEND TO AGENT">
         <button type="button" onClick={cycleRepo} className="text-mid hover:text-ink" title="target repo (click to cycle)">
           {repo} ▾

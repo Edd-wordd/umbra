@@ -104,7 +104,7 @@ export default function Terminal() {
   }
 
   return (
-    <section aria-label="terminal" className="flex min-h-0 flex-1 flex-col">
+    <section aria-label="terminal" className="flex min-h-[150px] flex-1 flex-col">
       <div className="flex h-[16px] items-center gap-[10px] text-[9.5px] leading-none">
         <span className="tracking-[2px] text-mid">TERMINAL</span>
         <span className="shrink-0 whitespace-nowrap text-ink">{session.title}</span>

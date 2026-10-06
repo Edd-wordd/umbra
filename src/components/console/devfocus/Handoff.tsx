@@ -10,12 +10,13 @@ export default function Handoff() {
   const open = useDevStore((s) => s.handoffOpen);
   const resume = useDevStore((s) => s.resumeSessions);
   const agents = useDevStore((s) => s.agents.length);
+  const drawerOpen = useDevStore((s) => s.expandedProject !== null);
 
-  if (!open) {
+  if (!open || drawerOpen) {
     return (
       <section aria-label="where you left off">
-        <SectionHead title="WHERE YOU LEFT OFF" meta={`resumed · ${agents} sessions reattached`}>
-          <button type="button" className="text-dim hover:text-ink" onClick={() => useDevStore.setState({ handoffOpen: true })}>
+        <SectionHead title="WHERE YOU LEFT OFF" meta={open ? `${handoff.items.length} repos · folded while a project is open` : `resumed · ${agents} sessions reattached`}>
+          <button type="button" className="text-dim hover:text-ink" onClick={() => useDevStore.setState({ handoffOpen: true, expandedProject: null })}>
             show ▾
           </button>
         </SectionHead>
@@ -24,7 +25,7 @@ export default function Handoff() {
   }
 
   return (
-    <section aria-label="where you left off">
+    <section aria-label="where you left off" className="shrink-0">
       <SectionHead title="WHERE YOU LEFT OFF" meta={`last session ${formatClock(new Date(handoff.at))}`}>
         <Btn onClick={() => useDevStore.setState({ handoffOpen: false })} tone="quiet">
           DISMISS

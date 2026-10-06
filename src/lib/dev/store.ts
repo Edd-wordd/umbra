@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { createDevSnapshot, createMockDevBridge, MOCK_REPOS } from "../mock/dev";
 import type { Attention } from "../store";
 import { shortCwd } from "./format";
+import { PROJECTS, type DevProject } from "./projects";
+import { getService } from "./services";
 import { classifyCommand } from "./risk";
 import type {
   ActivityEntry,
@@ -42,7 +44,12 @@ interface DevState extends DevSnapshot {
   selectedId: string;
   pending: PendingApproval | null;
   handoffOpen: boolean;
-  sentryOpen: string | null;
+  /** Per-project config (which services each repo uses); "+ service" edits it locally. */
+  projects: DevProject[];
+  /** Project whose service details are open under the terminal. */
+  expandedProject: RepoId | null;
+  /** Project whose "+ service" picker is open. */
+  pickerFor: RepoId | null;
   activity: ActivityEntry[];
   dispatchRepo: RepoId;
   dispatchAgent: AgentKind;
@@ -64,7 +71,10 @@ interface DevState extends DevSnapshot {
   cycleDispatchRepo: () => void;
   cycleDispatchAgent: () => void;
   resumeSessions: (source?: ActivitySource) => void;
-  toggleSentry: (id: string) => void;
+  toggleProject: (repo: RepoId) => void;
+  openPicker: (repo: RepoId | null) => void;
+  addService: (repo: RepoId, serviceId: string, source?: ActivitySource) => void;
+  detachService: (repo: RepoId, serviceId: string, source?: ActivitySource) => void;
   runTests: (repo: RepoId, source?: ActivitySource) => void;
   reviewDiff: (agentId: string, source?: ActivitySource) => void;
 }
@@ -91,7 +101,9 @@ export const useDevStore = create<DevState>()((set, get) => {
     selectedId: "t-umbra-agent",
     pending: null,
     handoffOpen: true,
-    sentryOpen: null,
+    projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
+    expandedProject: null,
+    pickerFor: null,
     activity: [
       { id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 4 agents · 3 ports", result: "info" },
       { id: nid("x"), at: Date.now() - 135_000, source: "agent", text: "umbra/cursor waiting · workspace trust", result: "pending" },
@@ -133,6 +145,8 @@ export const useDevStore = create<DevState>()((set, get) => {
                 ? s.ci.map((r) => (r.repo === ev.run.repo ? ev.run : r))
                 : [ev.run, ...s.ci],
             };
+          case "service.upsert":
+            return { services: { ...s.services, [ev.service]: { ...s.services[ev.service], [ev.repo]: ev.payload } } };
           case "notice":
             return {
               activity: [...s.activity, { id: nid("x"), at: Date.now(), source: "bridge" as const, text: ev.text, result: ev.result }].slice(-MAX_LOG),
@@ -248,7 +262,26 @@ export const useDevStore = create<DevState>()((set, get) => {
       bridge.send({ type: "sessions.resume" });
     },
 
-    toggleSentry: (id) => set({ sentryOpen: get().sentryOpen === id ? null : id }),
+    toggleProject: (repo) => set({ expandedProject: get().expandedProject === repo ? null : repo, pickerFor: null }),
+
+    openPicker: (pickerFor) => set({ pickerFor }),
+
+    addService: (repo, serviceId, source = "touch") => {
+      const p = get().projects.find((x) => x.repo === repo);
+      if (!p || p.services.includes(serviceId) || !getService(serviceId)) return;
+      const connected = get().services[serviceId]?.[repo] !== undefined;
+      set({
+        projects: get().projects.map((x) => (x.repo === repo ? { ...x, services: [...x.services, serviceId] } : x)),
+        pickerFor: null,
+        expandedProject: repo,
+      });
+      get().log(source, `attached ${serviceId} → ${repo}${connected ? "" : " · not connected yet (sample)"}`, "ok");
+    },
+
+    detachService: (repo, serviceId, source = "touch") => {
+      set({ projects: get().projects.map((x) => (x.repo === repo ? { ...x, services: x.services.filter((id) => id !== serviceId) } : x)) });
+      get().log(source, `detached ${serviceId} from ${repo}`, "info");
+    },
 
     runTests: (repo, source = "touch") => {
       const agent = get().agents.find((a) => a.repo === repo);

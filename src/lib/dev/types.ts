@@ -7,6 +7,7 @@
  * Shape rules: plain JSON (no Dates, no class instances), epoch-ms timestamps,
  * stable string ids. Everything the UI shows is derived from these.
  */
+import type { ServicePayloads } from "./services/types";
 
 export type RepoId = "umbra" | "parallax" | "deadbridge-site" | "google" | (string & {});
 export type AgentKind = "cursor" | "codex" | "pi";
@@ -103,15 +104,6 @@ export interface CiRun {
   at: number;
 }
 
-export interface SentryIssue {
-  id: string;
-  project: string;
-  title: string;
-  count24h: number;
-  firstSeen: string;
-  excerpt: string[];
-}
-
 export interface Handoff {
   repo: RepoId;
   branch: string;
@@ -124,7 +116,8 @@ export interface DevSnapshot {
   sessions: Record<string, TermSession>;
   servers: DevServer[];
   ci: CiRun[];
-  sentry: Record<string, SentryIssue>;
+  /** Per-service, per-repo payloads rendered by the service adapters (src/lib/dev/services). */
+  services: ServicePayloads;
   handoff: { at: number; items: Handoff[] };
 }
 
@@ -151,6 +144,7 @@ export type DevEvent =
   | { type: "term.clear"; sessionId: string }
   | { type: "server.upsert"; server: DevServer }
   | { type: "ci.upsert"; run: CiRun }
+  | { type: "service.upsert"; service: string; repo: RepoId; payload: unknown }
   | { type: "notice"; text: string; result: ActivityResult };
 
 export interface DevBridge {

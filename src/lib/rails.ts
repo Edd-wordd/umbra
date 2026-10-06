@@ -49,50 +49,9 @@ export interface PanelContent {
 const r = (...cells: PanelRow["cells"]): PanelRow => ({ cells });
 
 export const RAIL_SAMPLE: Record<RailId, PanelContent> = {
-  dev: {
-    sections: [
-      {
-        title: "PULL REQUESTS",
-        source: "3 open · github",
-        rows: [
-          r({ text: "#142" }, { text: "umbra" }, { text: "feat/mesh-sim" }, { text: "review", tone: "active", align: "end" }),
-          r({ text: "#138" }, { text: "umbra" }, { text: "chore/tw-tokens" }, { text: "✓ ready", tone: "mid", align: "end" }),
-          r({ text: "#57" }, { text: "deadbridge" }, { text: "fix/lead-dedupe" }, { text: "✕ checks", tone: "broken", align: "end" }),
-        ],
-      },
-      {
-        title: "TESTS · main",
-        source: "ci",
-        rows: [
-          r({ text: "umbra" }, { text: "212 pass · 0 fail" }, { text: "✓", tone: "mid", align: "end" }),
-          r({ text: "deadbridge" }, { text: "88 pass · 2 fail" }, { text: "✕", tone: "broken", align: "end" }),
-          r({ text: "  ✕ leads.dedupe.spec › merges by email", tone: "broken" }),
-        ],
-      },
-      {
-        title: "SENTRY · 24h",
-        source: "sentry",
-        rows: [
-          r({ text: "SAMPLE-1F" }, { text: "TypeError: node.x undef" }, { text: "×14", tone: "attention", align: "end" }),
-          r({ text: "SAMPLE-0A" }, { text: "Timeout /api/leads" }, { text: "×3", tone: "attention", align: "end" }),
-        ],
-      },
-      {
-        title: "POSTHOG · 24h",
-        source: "deadbridge.app",
-        rows: [r({ text: "pageviews" }, { text: "▲ +38% blip vs 7d avg", tone: "attention", align: "end" })],
-      },
-      {
-        title: "FIGMA",
-        source: "figma",
-        rows: [r({ text: "Umbra / Console v0" }, { text: "edited 40m ago", tone: "dim", align: "end" })],
-      },
-    ],
-    actions: [
-      { label: "open PR #57", toolId: "dev.prs.open" },
-      { label: "rerun ci", toolId: "dev.ci.rerun" },
-    ],
-  },
+  // The Dev rail opens the Dev focus workspace (src/components/console/devfocus);
+  // its services render per project via src/lib/dev/services adapters.
+  dev: { sections: [], actions: [] },
   lab: {
     sections: [
       {

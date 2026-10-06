@@ -26,3 +26,13 @@ export async function approvePending(): Promise<void> {
 }
 
 export const denyPending = () => useDevStore.getState().denyPending();
+
+/** Card actions on service details: read tools from the shared tool layer. */
+export async function runServiceAction(toolId: string, args?: Record<string, string>): Promise<void> {
+  const tool = getTool(toolId);
+  const dev = useDevStore.getState();
+  if (!tool) return dev.log("touch", `unknown tool ${toolId}`, "error");
+  const { wakeRail, setMode, toIdle } = useUmbra.getState();
+  const res = await runTool(tool, { source: "touch", approved: false, args, wakeRail, setMode, toIdle });
+  if (!res.ok) dev.log("touch", res.message, "error");
+}
