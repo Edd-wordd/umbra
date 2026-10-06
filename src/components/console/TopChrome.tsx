@@ -20,12 +20,12 @@ const HEALTH: { id: string; label: string; state: Health }[] = [
 function Wordmark({ dim }: { dim: boolean }) {
   return (
     <div className="absolute left-10 top-[40px] transition-opacity duration-300" style={{ opacity: dim ? 0.6 : 1 }}>
-      <div className="text-[12px] leading-none tracking-[5px] text-mid">UMBRA</div>
-      <ul className="mt-[14px] flex gap-[16px] text-[9.5px] leading-none tracking-[1px] text-dim" aria-label="bridge health (placeholder)">
+      <div className="text-[11px] leading-none tracking-[0.6em] text-ink">UMBRA</div>
+      <ul className="label mt-[14px] flex gap-[16px] text-dim" aria-label="bridge health (placeholder)">
         {HEALTH.map((h) => (
           <li key={h.id} className="flex items-center gap-[5px]" title={`${h.label}: ${h.state} (placeholder)`}>
             <span
-              className={`inline-block h-[4px] w-[4px] rounded-full ${h.state === "down" ? "bg-broken glow-broken" : "bg-dim"}`}
+              className={`inline-block h-[4px] w-[4px] ${h.state === "down" ? "bg-broken" : "bg-mid"}`}
             />
             {h.label}
           </li>
@@ -41,17 +41,17 @@ function Clock() {
   return (
     <div className="absolute left-1/2 top-[34px] -translate-x-1/2 text-center">
       <time
-        className="block text-[44px] font-extralight leading-none tracking-[4px] text-ink tabular-nums"
+        className="block text-[42px] font-extralight leading-none tracking-[6px] text-ink tabular-nums"
         dateTime={now?.toISOString()}
         suppressHydrationWarning
       >
         {now ? formatClock(now) : "--:--"}
       </time>
-      <div className="mt-[12px] text-[10px] leading-none tracking-[3px] text-dim" suppressHydrationWarning>
+      <div className="label mt-[13px] text-dim" suppressHydrationWarning>
         {now ? formatDateLine(now) : "\u00a0"}
       </div>
       {mode === "astro" && (
-        <div className="mt-[16px] text-[10px] leading-none tracking-[4px] text-active">MODE · ASTRO</div>
+        <div className="label mt-[16px] text-active">MODE · ASTRO</div>
       )}
     </div>
   );
@@ -107,27 +107,27 @@ function VoiceIndicator() {
     >
       <div className="flex h-[18px] items-center gap-[8px]">
         {voice === "speaking" && <Waveform reducedMotion={reducedMotion} />}
+        {/* Square voice tile: outline at idle, solid white when live. */}
         <span className="relative flex h-[12px] w-[12px] items-center justify-center">
           {active ? (
             <>
-              <span className="glow-active h-[10px] w-[10px] rounded-full bg-active" />
+              <span className="glow-active h-[10px] w-[10px] bg-active" />
               {voice === "thinking" ? (
-                <span className="absolute -inset-[5px] animate-spin rounded-full border border-dashed border-active/60 [animation-duration:3s]" />
+                <span className="absolute -inset-[4px] animate-spin border border-dashed border-active/50 [animation-duration:4s]" />
               ) : (
-                <span className="animate-umbra-ring absolute -inset-[5px] rounded-full border border-active/60" />
+                <span className="animate-umbra-ring absolute -inset-[4px] border border-active/50" />
               )}
             </>
           ) : (
-            <span className="h-[12px] w-[12px] rounded-full border border-dim" />
+            <span className="h-[11px] w-[11px] border border-dim" />
           )}
         </span>
-        <span className={`text-[10px] leading-none tracking-[2px] ${active ? "text-active" : "text-dim"}`}>
-          VOICE · {voice.toUpperCase()}
-        </span>
+        <span className={`label ${active ? "text-active" : "text-dim"}`}>VOICE</span>
+        <span className={`label w-[72px] ${active ? "text-active" : "text-mid"}`}>{voice.toUpperCase()}</span>
       </div>
-      <div className="mt-[10px] flex gap-[12px] text-[9.5px] leading-none">
+      <div className="mt-[10px] flex gap-[10px]">
         {VOICE_STATES.map((s: VoiceState) => (
-          <span key={s} className={s === voice ? (active ? "text-active" : "text-mid") : "text-ghost"}>
+          <span key={s} className={`label text-[8px] ${s === voice ? (active ? "text-active" : "text-mid") : "text-ghost"}`}>
             {s}
           </span>
         ))}

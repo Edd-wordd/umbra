@@ -87,7 +87,7 @@ export default function Console() {
   const mode = useUmbra((s) => s.mode);
 
   return (
-    <main className="umbra-grid fixed inset-0 select-none overflow-hidden" data-mode={mode}>
+    <main className="umbra-grid fixed inset-0 bg-bg select-none overflow-hidden" data-mode={mode}>
       <div className="umbra-vignette pointer-events-none absolute inset-0" />
       <CoreStage />
       <TopChrome />

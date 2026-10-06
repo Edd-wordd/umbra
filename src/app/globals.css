@@ -1,31 +1,35 @@
 @import "tailwindcss";
 
 /*
- * Umbra design tokens (see DESIGN.md).
- * Near-black void, faint grid, 1px lines, monospace, zero radius.
- * Color is reserved for activity: cyan = active, amber = attention, red = broken.
+ * Umbra design tokens: "Dataland" (see DESIGN.md).
+ * Pure black, white and grays; lots of empty space; 1px outlines; mono type,
+ * small uppercase labels with wide tracking. White = active, grays = idle,
+ * red = broken (the only real accent), amber only for "needs you" marks.
  * JS mirror for WebGL lives in src/lib/theme/tokens.ts; keep the two in sync.
  */
 :root {
-  --umbra-bg: #060708;
-  --umbra-panel: #08090b;
-  --umbra-panel-raised: #0e1114;
-  --umbra-line: #1d2024;
-  --umbra-line-strong: #2a2f35;
-  --umbra-ghost: #2a2e33;
-  --umbra-dim: #4a5058;
-  --umbra-mid: #7d848c;
-  --umbra-ink: #aab1b9;
-  --umbra-core: #9aa3ad;
+  --umbra-bg: #000000;
+  --umbra-panel: #000000;
+  --umbra-panel-raised: #0c0c0c;
+  --umbra-line: #1c1c1c;
+  --umbra-line-strong: #333333;
+  --umbra-ghost: #3d3d3d;
+  --umbra-dim: #5c5c5c;
+  --umbra-mid: #8f8f8f;
+  --umbra-ink: #d4d4d4;
+  --umbra-core: #b8b8b8;
 
-  --umbra-cyan: #3fe3ff;
-  --umbra-amber: #ffb648;
-  --umbra-red: #ff5252;
+  /* Activity: white is "on". Names kept (active/attention/broken) so every
+     component maps through the same three tokens. */
+  --umbra-active: #f5f5f5;
+  --umbra-amber: #d6a248;
+  --umbra-red: #ff3b30;
 
-  --umbra-grid-minor: rgba(170, 180, 190, 0.028);
-  --umbra-grid-major: rgba(170, 180, 190, 0.055);
+  /* Grid is gone in favour of black space; only a ghost of the major lines. */
+  --umbra-grid-minor: rgba(255, 255, 255, 0);
+  --umbra-grid-major: rgba(255, 255, 255, 0.014);
   --umbra-grid-step: 40px;
-  --umbra-grid-step-major: 200px;
+  --umbra-grid-step-major: 240px;
 
   --umbra-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
 }
@@ -41,7 +45,7 @@
   --color-mid: var(--umbra-mid);
   --color-ink: var(--umbra-ink);
   --color-core: var(--umbra-core);
-  --color-active: var(--umbra-cyan);
+  --color-active: var(--umbra-active);
   --color-attention: var(--umbra-amber);
   --color-broken: var(--umbra-red);
 
@@ -76,7 +80,7 @@
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--umbra-cyan) 25%, transparent);
+    background: rgba(255, 255, 255, 0.22);
   }
 
   button {
@@ -84,7 +88,7 @@
   }
 
   :focus-visible {
-    outline: 1px solid var(--umbra-cyan);
+    outline: 1px solid var(--umbra-active);
     outline-offset: 2px;
   }
 }
@@ -113,9 +117,9 @@
     );
   }
 
-  /* Activity glow: only applied to things that are active. */
+  /* Activity glow: only applied to things that are active. A faint white bloom, never neon. */
   .glow-active {
-    filter: drop-shadow(0 0 3px var(--umbra-cyan));
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.45));
   }
   .glow-attention {
     filter: drop-shadow(0 0 3px var(--umbra-amber));
@@ -123,6 +127,69 @@
   .glow-broken {
     filter: drop-shadow(0 0 3px var(--umbra-red));
   }
+}
+
+/* Small uppercase label with wide tracking: the Dataland key/value voice. */
+@utility label {
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* One-shot glitch on a state change (~200 ms): RGB split + scanline jitter.
+   Added by useGlitch(); never continuous; off under reduced motion. */
+@keyframes umbra-glitch {
+  0% {
+    transform: translateX(0);
+    clip-path: inset(0 0 0 0);
+    text-shadow: none;
+    filter: none;
+  }
+  15% {
+    transform: translateX(-2px);
+    clip-path: inset(12% 0 58% 0);
+    text-shadow: 1.5px 0 rgba(255, 59, 48, 0.75), -1.5px 0 rgba(120, 160, 255, 0.6);
+    filter: drop-shadow(1px 0 rgba(255, 59, 48, 0.5)) drop-shadow(-1px 0 rgba(120, 160, 255, 0.45));
+  }
+  35% {
+    transform: translateX(2px);
+    clip-path: inset(48% 0 18% 0);
+  }
+  55% {
+    transform: translateX(-1px);
+    clip-path: inset(0 0 0 0);
+    text-shadow: -1px 0 rgba(255, 59, 48, 0.6), 1px 0 rgba(120, 160, 255, 0.5);
+  }
+  100% {
+    transform: translateX(0);
+    clip-path: inset(0 0 0 0);
+    text-shadow: none;
+    filter: none;
+  }
+}
+.umbra-glitch {
+  animation: umbra-glitch 210ms steps(6, end) 1;
+}
+/* Scanline flash laid over a panel as it opens. */
+@keyframes umbra-scan {
+  0% {
+    opacity: 0.9;
+    background-position: 0 0;
+  }
+  100% {
+    opacity: 0;
+    background-position: 0 24px;
+  }
+}
+.umbra-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px);
+  opacity: 0; /* stays hidden when reduced motion strips the animation */
+  animation: umbra-scan 220ms linear 1 both;
 }
 
 @keyframes umbra-ring {

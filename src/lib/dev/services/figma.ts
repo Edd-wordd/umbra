@@ -11,7 +11,7 @@ export interface FigmaPayload {
 export const figma = defineService<FigmaPayload>({
   id: "figma",
   label: "figma",
-  chip: "figma",
+  chip: "F",
   blurb: "design file, last edit, open comments",
   read(p, ctx) {
     if (!p) return notConnected("Figma");

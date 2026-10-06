@@ -14,8 +14,10 @@ export {
   type Tier,
 } from "./layout";
 
-import { sampleGraph } from "./sample";
-import { computeCoreLayout } from "./layout";
+export { computeTileLayout, DOMAIN_CODE, TILE_R, type Tile, type TileLayout, type Thread, type District } from "./tiles";
 
-/** Layout of the sample graph, computed once at module load. */
-export const sampleLayout = computeCoreLayout(sampleGraph);
+import { sampleGraph } from "./sample";
+import { computeTileLayout } from "./tiles";
+
+/** Tile ("data city") layout of the sample graph, computed once at module load. */
+export const sampleTiles = computeTileLayout(sampleGraph);

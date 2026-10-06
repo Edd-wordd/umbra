@@ -24,11 +24,11 @@ function Tick({ rail, awake, dimmed }: { rail: RailDef; awake: boolean; dimmed: 
     >
       <span
         className={`block h-px w-[14px] transition-colors ${
-          awake ? "glow-active h-[1.5px] bg-active" : "bg-dim group-hover:bg-mid"
+          awake ? "h-[2px] bg-active" : "bg-ghost group-hover:bg-mid"
         }`}
       />
       <span
-        className={`text-[10px] leading-none tracking-[2px] transition-colors ${
+        className={`label text-[9.5px] transition-colors ${
           awake ? "text-active" : "text-dim group-hover:text-mid"
         }`}
       >
@@ -38,7 +38,7 @@ function Tick({ rail, awake, dimmed }: { rail: RailDef; awake: boolean; dimmed: 
         <span
           title={attn.note}
           data-attention={attn.level}
-          className={`h-[4px] w-[4px] rounded-full ${attn.level === "broken" ? "bg-broken glow-broken" : "bg-attention glow-attention"}`}
+          className={`h-[5px] w-[5px] ${attn.level === "broken" ? "bg-broken" : "bg-attention"}`}
         />
       )}
     </button>
@@ -52,8 +52,8 @@ export default function Rails() {
   const anyAwake = awake !== null || mode === "astro";
   return (
     <nav aria-label="rails">
-      <div className="absolute left-[10px] w-px bg-line" style={{ top: pct(290), height: pct(320) }} />
-      <div className="absolute right-[10px] w-px bg-line" style={{ top: pct(290), height: pct(440) }} />
+      <div className="absolute left-[10px] w-px bg-line/70" style={{ top: pct(290), height: pct(320) }} />
+      <div className="absolute right-[10px] w-px bg-line/70" style={{ top: pct(290), height: pct(440) }} />
       {RAILS.map((r) => {
         const isAwake = awake === r.id || (mode === "astro" && r.id === "astro");
         return <Tick key={r.id} rail={r} awake={isAwake} dimmed={anyAwake && !isAwake} />;

@@ -22,7 +22,7 @@ export interface GithubPayload {
 export const github = defineService<GithubPayload>({
   id: "github",
   label: "github",
-  chip: "gh",
+  chip: "G",
   blurb: "git state, unpushed work, stale branches, actions",
   read(p, ctx) {
     if (!p) return notConnected("GitHub");
@@ -64,14 +64,15 @@ export const github = defineService<GithubPayload>({
     if (failed)
       needs.push({
         tone: "broken",
-        text: `ci #${run.number} ✕ ${run.summary.split(" · ")[0]}`,
+        state: "CI FAILED",
+        text: `#${run.number} · ${run.summary.split(" · ")[0]}`,
         refs: [run.id, ...(run.sentryId ? [run.sentryId] : [])],
         action: { label: "run tests", toolId: "dev.tests.run", args: { repo: ctx.project.repo } },
       });
     // Solo dev: work that exists only on this laptop is the real risk.
-    if (!p.remote && p.ahead) needs.push({ tone: "attention", text: `${p.ahead} commits not backed up · no remote` });
+    if (!p.remote && p.ahead) needs.push({ tone: "attention", state: "LOCAL", text: `${p.ahead} commits · no remote` });
     else if (p.remote && p.ahead && ctx.now - p.lastCommit.at > DAY)
-      needs.push({ tone: "attention", text: `${p.ahead} unpushed · ${formatAge(ctx.now - p.lastCommit.at)}` });
+      needs.push({ tone: "attention", state: "AHEAD", text: `${p.ahead} unpushed · ${formatAge(ctx.now - p.lastCommit.at)}` });
 
     return {
       status: failed ? "broken" : needs.length ? "attention" : run?.status === "running" ? "active" : "ok",

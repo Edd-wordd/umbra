@@ -9,7 +9,7 @@ export interface DockerPayload {
 export const docker = defineService<DockerPayload>({
   id: "docker",
   label: "docker",
-  chip: "docker",
+  chip: "D",
   blurb: "this project's containers (rest stays on LAB/NET)",
   read(p) {
     if (!p) return notConnected("Docker");

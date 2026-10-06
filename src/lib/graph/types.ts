@@ -45,7 +45,7 @@ export type NodeKind =
 
 /**
  * Live state of a node. Maps onto the activity palette when its sector is lit:
- * ok/idle -> cyan, attention -> amber, broken -> red.
+ * ok/idle -> white, attention -> amber, broken -> red.
  */
 export type NodeStatus = "idle" | "ok" | "attention" | "broken";
 

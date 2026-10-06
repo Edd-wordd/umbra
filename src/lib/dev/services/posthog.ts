@@ -14,7 +14,7 @@ export interface PosthogPayload {
 export const posthog = defineService<PosthogPayload>({
   id: "posthog",
   label: "posthog",
-  chip: "posthog",
+  chip: "P",
   blurb: "pageviews, blips vs 7d, form conversions",
   read(p) {
     if (!p) return notConnected("PostHog");

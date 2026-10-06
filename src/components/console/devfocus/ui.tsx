@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DevTone } from "@/lib/dev/format";
+import { Glyph, type GlyphState } from "@/components/ui/Glyph";
 
 export const TEXT_TONE: Record<DevTone, string> = {
   active: "text-active",
@@ -11,39 +12,43 @@ export const TEXT_TONE: Record<DevTone, string> = {
 
 const DOT_TONE: Record<DevTone, string> = {
   active: "bg-active glow-active",
-  attention: "bg-attention glow-attention",
-  broken: "bg-broken glow-broken",
+  attention: "bg-attention",
+  broken: "bg-broken",
   mid: "border border-mid",
   dim: "border border-dim",
 };
 
-/** 5px state dot. Only activity states fill and glow; idle ones are hollow. */
+/** 5px square state mark. Only activity states fill; idle ones are hollow. */
 export function Dot({ tone, pulse = false }: { tone: DevTone; pulse?: boolean }) {
   return (
     <span className="relative inline-flex h-[5px] w-[5px] shrink-0">
-      <span className={`h-[5px] w-[5px] rounded-full ${DOT_TONE[tone]}`} />
-      {pulse && <span className="animate-umbra-ring absolute -inset-[3px] rounded-full border border-active/50" />}
+      <span className={`h-[5px] w-[5px] ${DOT_TONE[tone]}`} />
+      {pulse && <span className="animate-umbra-ring absolute -inset-[3px] border border-active/40" />}
     </span>
   );
 }
 
+/** Spaced uppercase section key, e.g. `NEEDS YOU   4`. */
 export function SectionHead({ title, meta, children }: { title: string; meta?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="flex h-[16px] items-center gap-[12px] text-[9.5px] leading-none">
-      <span className="shrink-0 whitespace-nowrap tracking-[2px] text-mid">{title}</span>
-      {meta && <span className="min-w-0 truncate text-dim">{meta}</span>}
-      {children && <span className="ml-auto flex shrink-0 items-center gap-[10px]">{children}</span>}
+    <div className="flex h-[16px] items-center gap-[14px]">
+      <span className="label shrink-0 whitespace-nowrap text-dim">{title}</span>
+      {meta && <span className="label min-w-0 truncate text-ghost">{meta}</span>}
+      {children && <span className="ml-auto flex shrink-0 items-center gap-[8px]">{children}</span>}
     </div>
   );
 }
 
-type BtnTone = "attention" | "plain" | "quiet";
+type BtnTone = "attention" | "plain" | "quiet" | "primary";
 const BTN: Record<BtnTone, string> = {
-  attention: "border-attention/80 text-attention hover:bg-attention/10",
-  plain: "border-line-strong text-mid hover:border-dim hover:text-ink",
+  /** Approve-type actions: white outline, fills white on hover. */
+  attention: "border-ink/80 text-ink hover:bg-active hover:text-black",
+  primary: "border-active bg-active text-black hover:bg-ink",
+  plain: "border-line-strong text-mid hover:border-mid hover:text-ink",
   quiet: "border-transparent text-dim hover:text-ink",
 };
 
+/** Inline action, drawn as an outlined tile with a spaced uppercase label. */
 export function Btn({
   tone = "plain",
   children,
@@ -66,7 +71,7 @@ export function Btn({
         e.stopPropagation();
         onClick();
       }}
-      className={`h-[18px] shrink-0 border px-[7px] text-[9px] leading-none tracking-[1px] transition-colors disabled:opacity-40 ${BTN[tone]}`}
+      className={`h-[17px] shrink-0 border px-[6px] text-[8.5px] uppercase leading-none tracking-[0.16em] transition-colors disabled:opacity-40 ${BTN[tone]}`}
     >
       {children}
     </button>
@@ -88,16 +93,16 @@ export function ApprovalStrip({
   hint?: string;
 }) {
   return (
-    <div className="umbra-pop relative border border-attention/40 bg-attention/[0.04] py-[8px] pl-[12px] pr-[10px]" role="alertdialog" aria-label="needs your yes">
-      <span className="glow-attention absolute -left-px top-[-1px] bottom-[-1px] w-[2px] bg-attention" />
-      <div className="flex items-center gap-[10px] text-[9px] leading-none tracking-[2px] text-attention">
-        <span>NEEDS YOUR YES</span>
-        <span className="truncate tracking-[0.5px] text-attention/70">{reason}</span>
+    <div className="umbra-pop relative border border-line-strong py-[8px] pl-[12px] pr-[10px]" role="alertdialog" aria-label="needs your yes">
+      <span className="absolute -left-px top-[-1px] bottom-[-1px] w-[2px] bg-attention" />
+      <div className="flex items-center gap-[12px]">
+        <span className="label text-attention">NEEDS YOUR YES</span>
+        <span className="label truncate text-dim">{reason}</span>
       </div>
       <div className="mt-[7px] flex items-center gap-[8px]">
         <code className="min-w-0 flex-1 truncate text-[11px] text-ink">{command}</code>
         {hint && <span className="shrink-0 text-[9px] text-dim">{hint}</span>}
-        <Btn tone="attention" onClick={onApprove}>
+        <Btn tone="primary" onClick={onApprove}>
           APPROVE
         </Btn>
         <Btn onClick={onDeny}>DENY</Btn>
@@ -106,31 +111,12 @@ export function ApprovalStrip({
   );
 }
 
-const CHIP: Record<DevTone, string> = {
-  active: "border-active/60 text-active",
-  attention: "border-attention/70 text-attention",
-  broken: "border-broken/70 text-broken",
-  mid: "border-line-strong text-mid",
-  dim: "border-line text-dim",
-};
-const GLYPH: Partial<Record<DevTone, string>> = { active: "◌", attention: "!", broken: "✕" };
+const TONE_GLYPH: Record<DevTone, GlyphState> = { active: "active", attention: "attention", broken: "broken", mid: "ok", dim: "idle" };
+export const glyphState = (t: DevTone): GlyphState => TONE_GLYPH[t];
 
-/** Service chip on a project row. Color only when the service needs attention or is running. */
+/** Service tile on a project row (a Glyph keyed by activity tone). */
 export function Chip({ label, tone, title, onClick }: { label: string; tone: DevTone; title?: string; onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      className={`flex h-[16px] shrink-0 items-center gap-[4px] border px-[5px] text-[9px] leading-none transition-colors hover:text-ink ${CHIP[tone]}`}
-    >
-      {label}
-      {GLYPH[tone] && <span className="text-[8px]">{GLYPH[tone]}</span>}
-    </button>
-  );
+  return <Glyph code={label} state={TONE_GLYPH[tone]} title={title} onClick={onClick ?? (() => {})} />;
 }
 
 /** Tiny 1px trend line (no chart lib). */

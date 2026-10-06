@@ -1,13 +1,16 @@
 import * as THREE from "three";
-import { RADII, type CoreLayout } from "@/lib/graph";
+import { sampleTiles, type TileLayout } from "@/lib/graph";
 import { activity } from "@/lib/theme/tokens";
-import { BASE_RGB, BG_RGB, CORE_SECTOR, CYAN_RGB, GREY_HALO_RGB, buildCoreGeometry } from "./geometry";
-import { haloFragment, haloVertex, lineFragment, lineVertex, pointFragment, pointVertex } from "./shaders";
+import { AMBER_RGB, BASE_RGB, CORE_SECTOR, GREY_HALO_RGB, RED_RGB, TILE_PAD, WHITE_RGB, buildCoreGeometry } from "./geometry";
+import { haloFragment, haloVertex, lineFragment, lineVertex, tileFragment, tileVertex } from "./shaders";
 
 /**
  * Imperative three.js side of the core: owns geometry, materials, uniforms
  * and per-frame animation state. React only mounts `root` and calls
  * `update()` from useFrame, so nothing here re-renders React.
+ *
+ * Draw calls: halo plane, threads (one LineSegments), tiles (one instanced
+ * mesh), plus a bracket per sector only while that sector needs attention.
  */
 
 export interface CoreInputs {
@@ -26,11 +29,9 @@ export interface CoreInputs {
 
 export type SectorAttention = "attention" | "broken" | null;
 
-const BREATH_PERIOD = 9; // seconds, from the wireframes
-const RIPPLE_POOL = 4;
-const RIPPLE_LIFE = 1.4;
-const R0 = RADII.core * 2;
-const ATTN_PERIOD = 2.4; // seconds; slow enough to read as "waiting", not an alarm
+const BREATH_PERIOD = 9; // seconds
+const ATTN_PERIOD = 2.4; // slow enough to read as "waiting", not an alarm
+const GLITCH_S = 0.2; // one-shot flicker on a state change
 const ATTN_COLOR = { attention: new THREE.Color(activity.attention), broken: new THREE.Color(activity.broken) };
 
 const v3 = (c: readonly number[]) => new THREE.Vector3(c[0], c[1], c[2]);
@@ -38,23 +39,20 @@ const damp = (x: number, t: number, k: number, dt: number) => x + (t - x) * (1 -
 
 export class CoreRuntime {
   readonly root = new THREE.Group();
-  /** True while a transition or ripple is in flight (caller runs full rate). */
+  /** True while a transition or glitch is in flight (caller runs full rate). */
   busy = true;
 
   private readonly disposables: { dispose(): void }[] = [];
   private readonly lit = { value: new Array(8).fill(0) as number[] };
   private readonly line: THREE.ShaderMaterial;
-  private readonly point: THREE.ShaderMaterial;
+  private readonly tile: THREE.ShaderMaterial;
   private readonly halo: THREE.ShaderMaterial;
-  private readonly pulseMat: THREE.LineBasicMaterial;
-  private readonly pulse: THREE.LineLoop;
-  private readonly ripples: { obj: THREE.LineLoop; mat: THREE.LineBasicMaterial; start: number }[] = [];
-  /** One attention bracket per sector: arc just outside the dial + faint inner-ring segment. */
-  private readonly attn: { obj: THREE.LineSegments; mat: THREE.LineBasicMaterial; level: number }[] = [];
+  /** One bracket per sector around its hub tile. */
+  private readonly attn: { obj: THREE.LineSegments; mat: THREE.LineBasicMaterial; level: number; want: SectorAttention }[] = [];
 
-  private s = { vx: 0, vy: 0, vs: 1, lit: new Array(8).fill(0) as number[], mix: 0, radius: 78, opacity: 0.32, voice: 0, prevLevel: 0, lastRipple: -10, next: 0 };
+  private s = { far: 1, vx: 0, vy: 0, vs: 1, lit: new Array(8).fill(0) as number[], mix: 0, radius: 70, opacity: 0.2, voice: 0, glitchAt: -10, attnKey: "" };
 
-  constructor(layout: CoreLayout) {
+  constructor(layout: TileLayout = sampleTiles) {
     const geo = buildCoreGeometry(layout);
     const common = { transparent: true, depthTest: false, depthWrite: false };
 
@@ -64,11 +62,24 @@ export class CoreRuntime {
       fragmentShader: lineFragment,
       uniforms: { uLit: this.lit, uBase: { value: v3(BASE_RGB) } },
     });
-    this.point = new THREE.ShaderMaterial({
+    this.tile = new THREE.ShaderMaterial({
       ...common,
-      vertexShader: pointVertex,
-      fragmentShader: pointFragment,
-      uniforms: { uLit: this.lit, uBase: { value: v3(BASE_RGB) }, uBg: { value: v3(BG_RGB) }, uPx: { value: 1 } },
+      vertexShader: tileVertex,
+      fragmentShader: tileFragment,
+      uniforms: {
+        uLit: this.lit,
+        uBase: { value: v3(BASE_RGB) },
+        uWhite: { value: v3(WHITE_RGB) },
+        uAmber: { value: v3(AMBER_RGB) },
+        uRed: { value: v3(RED_RGB) },
+        uPx: { value: 1 },
+        uPad: { value: TILE_PAD },
+        uTime: { value: 0 },
+        uGlitch: { value: 0 },
+        uLevel: { value: 0 },
+        uVoice: { value: 0 },
+        uFar: { value: 1 },
+      },
     });
     this.halo = new THREE.ShaderMaterial({
       ...common,
@@ -76,24 +87,16 @@ export class CoreRuntime {
       fragmentShader: haloFragment,
       uniforms: {
         uGrey: { value: v3(GREY_HALO_RGB) },
-        uCyan: { value: v3(CYAN_RGB) },
+        uHot: { value: v3(WHITE_RGB) },
         uMix: { value: 0 },
-        uRadius: { value: 78 },
-        uOpacity: { value: 0.32 },
+        uRadius: { value: 70 },
+        uOpacity: { value: 0.2 },
         uLevel: { value: 0 },
         uVoice: { value: 0 },
       },
     });
-    this.pulseMat = new THREE.LineBasicMaterial({ ...common, color: new THREE.Color().fromArray(CYAN_RGB), opacity: 0 });
 
-    const circlePts: THREE.Vector3[] = [];
-    for (let i = 0; i < 128; i++) {
-      const a = (i / 128) * Math.PI * 2;
-      circlePts.push(new THREE.Vector3(Math.cos(a), Math.sin(a), 0));
-    }
-    const circle = new THREE.BufferGeometry().setFromPoints(circlePts);
     const plane = new THREE.PlaneGeometry(1000, 1000);
-
     const add = <T extends THREE.Object3D>(o: T, order: number, visible = true): T => {
       o.renderOrder = order;
       o.frustumCulled = false;
@@ -102,40 +105,34 @@ export class CoreRuntime {
       return o;
     };
     add(new THREE.Mesh(plane, this.halo), 0);
-    add(new THREE.Mesh(geo.wedges, this.line), 1);
-    this.pulse = add(new THREE.LineLoop(circle, this.pulseMat), 2, false);
-    for (let i = 0; i < RIPPLE_POOL; i++) {
-      const mat = this.pulseMat.clone();
-      this.ripples.push({ obj: add(new THREE.LineLoop(circle, mat), 2, false), mat, start: -10 });
-      this.disposables.push(mat);
-    }
-    add(new THREE.LineSegments(geo.lines, this.line), 3);
-    add(new THREE.Points(geo.points, this.point), 4);
+    add(new THREE.LineSegments(geo.threads, this.line), 1);
+    add(new THREE.Mesh(geo.tiles, this.tile), 2);
 
-    for (const sec of layout.sectors) {
+    // Attention brackets: corner marks around each hub tile + a short tick toward the rim.
+    for (const d of layout.districts) {
+      const { x, y } = d.hub;
+      const hx = d.hub.w / 2 + 7;
+      const hy = d.hub.h / 2 + 6;
+      const L = 6;
       const pts: number[] = [];
-      const arc = (r: number, a1: number, a2: number) => {
-        const steps = Math.ceil(((a2 - a1) * r) / 4);
-        for (let i = 0; i < steps; i++) {
-          const t1 = a1 + ((a2 - a1) * i) / steps;
-          const t2 = a1 + ((a2 - a1) * (i + 1)) / steps;
-          pts.push(r * Math.cos(t1), -r * Math.sin(t1), 0, r * Math.cos(t2), -r * Math.sin(t2), 0);
+      for (const sx of [-1, 1])
+        for (const sy of [-1, 1]) {
+          const cx = x + sx * hx;
+          const cy = -(y + sy * hy);
+          pts.push(cx, cy, 0, cx - sx * L, cy, 0, cx, cy, 0, cx, cy + sy * L, 0);
         }
-      };
-      const ro = RADII.dial + 12;
-      const a1 = sec.start + 0.03;
-      const a2 = sec.end - 0.03;
-      arc(ro, a1, a2);
-      arc(ro + 2.5, a1 + 0.06, a2 - 0.06);
-      for (const a of [a1, a2]) pts.push(ro * Math.cos(a), -ro * Math.sin(a), 0, (ro - 6) * Math.cos(a), -(ro - 6) * Math.sin(a), 0);
+      const ux = Math.cos(d.angle);
+      const uy = -Math.sin(d.angle);
+      const r0 = Math.hypot(x, y) + Math.hypot(hx, hy) + 4;
+      pts.push(ux * r0, uy * r0, 0, ux * (r0 + 14), uy * (r0 + 14), 0);
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       const mat = new THREE.LineBasicMaterial({ ...common, color: ATTN_COLOR.attention.clone(), opacity: 0 });
-      this.attn.push({ obj: add(new THREE.LineSegments(g, mat), 5, false), mat, level: 0 });
+      this.attn.push({ obj: add(new THREE.LineSegments(g, mat), 3, false), mat, level: 0, want: null });
       this.disposables.push(g, mat);
     }
 
-    this.disposables.push(geo.lines, geo.wedges, geo.points, circle, plane, this.line, this.point, this.halo, this.pulseMat);
+    this.disposables.push(geo.tiles, geo.threads, plane, this.line, this.tile, this.halo);
   }
 
   /** Advance one frame. `t` = elapsed seconds, `px` = device px per world unit. */
@@ -152,17 +149,17 @@ export class CoreRuntime {
 
     S.voice = step(S.voice, inp.voiceOn ? 1 : 0, 5);
 
-    // Sector lighting (+ core glyph lights with any activity).
+    // Sector lighting (+ nucleus lights with any activity).
     const anyLit = inp.litIndex >= 0;
     for (let i = 0; i < CORE_SECTOR; i++) S.lit[i] = step(S.lit[i], i === inp.litIndex ? 1 : 0);
     S.lit[CORE_SECTOR] = step(S.lit[CORE_SECTOR], Math.max(anyLit ? 1 : 0, S.voice));
     for (let i = 0; i < 8; i++) this.lit.value[i] = S.lit[i];
 
-    // Halo: grey + 9s breathing at idle, cyan when active, voice-scaled (uLevel) when speaking.
+    // Halo: faint grey breathing at idle, white bloom when active, voice-scaled when speaking.
     const active = anyLit || inp.voiceOn;
     S.mix = step(S.mix, active ? 1 : 0, 4);
-    S.radius = step(S.radius, inp.voiceOn ? 190 : anyLit ? 96 : 78, 4);
-    S.opacity = step(S.opacity, inp.voiceOn ? 0.85 : 0.32, 4);
+    S.radius = step(S.radius, inp.voiceOn ? 230 : anyLit ? 110 : 70, 4);
+    S.opacity = step(S.opacity, inp.voiceOn ? 0.5 : anyLit ? 0.22 : 0.16, 4);
     const breath = inp.reducedMotion ? 0.8 : 0.55 + 0.45 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / BREATH_PERIOD));
     const hu = this.halo.uniforms;
     hu.uMix.value = S.mix;
@@ -171,42 +168,28 @@ export class CoreRuntime {
     hu.uLevel.value = inp.level;
     hu.uVoice.value = S.voice;
 
-
-    // Pulse ring follows the level.
-    const r = R0 * (1 + 0.7 * inp.level);
-    this.pulse.scale.set(r, r, 1);
-    this.pulseMat.opacity = (0.35 + 0.6 * inp.level) * (inp.speaking ? 1 : 0) * S.voice;
-    this.pulse.visible = this.pulseMat.opacity > 0.002;
-
-    // Ripples spawn on peaks (never under reduced motion).
-    if (inp.speaking && !inp.reducedMotion && inp.level > 0.62 && S.prevLevel <= 0.62 && t - S.lastRipple > 0.28) {
-      this.ripples[S.next].start = t;
-      S.next = (S.next + 1) % RIPPLE_POOL;
-      S.lastRipple = t;
+    // Glitch: one-shot on any attention change (never under reduced motion).
+    const key = inp.attention.map((a) => a ?? "-").join(",");
+    if (key !== S.attnKey) {
+      if (S.attnKey && !inp.reducedMotion) S.glitchAt = t;
+      S.attnKey = key;
     }
-    S.prevLevel = inp.level;
-    let rippling = false;
-    for (const rp of this.ripples) {
-      const age = (t - rp.start) / RIPPLE_LIFE;
-      if (age < 0 || age >= 1) {
-        rp.obj.visible = false;
-        continue;
-      }
-      rippling = true;
-      const e = 1 - Math.pow(1 - age, 3);
-      const rr = R0 + (RADII.dial + 24 - R0) * e;
-      rp.obj.scale.set(rr, rr, 1);
-      rp.mat.opacity = 0.45 * (1 - e);
-      rp.obj.visible = true;
-    }
+    const g = t - S.glitchAt;
+    const glitch = g >= 0 && g < GLITCH_S ? 1 - g / GLITCH_S : 0;
+
+    const tu = this.tile.uniforms;
+    tu.uTime.value = t;
+    tu.uGlitch.value = glitch;
+    tu.uLevel.value = inp.level;
+    tu.uVoice.value = S.voice;
 
     // Attention brackets: fade in/out, slow breathing pulse while present.
-    const pulse = inp.reducedMotion ? 0.75 : 0.55 + 0.45 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / ATTN_PERIOD));
+    const pulse = inp.reducedMotion ? 0.8 : 0.6 + 0.4 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / ATTN_PERIOD));
     this.attn.forEach((a, i) => {
       const want = inp.attention[i] ?? null;
       if (want) a.mat.color.copy(ATTN_COLOR[want]);
       a.level = step(a.level, want ? 1 : 0, 5);
-      a.mat.opacity = a.level * 0.8 * pulse;
+      a.mat.opacity = a.level * 0.85 * pulse;
       a.obj.visible = a.mat.opacity > 0.003;
     });
 
@@ -216,9 +199,12 @@ export class CoreRuntime {
     S.vs = step(S.vs, inp.view.scale, 5);
     this.root.position.set(S.vx, S.vy, 0);
     this.root.scale.set(S.vs, S.vs, 1);
-    this.point.uniforms.uPx.value = px * S.vs;
+    tu.uPx.value = px * S.vs;
+    // The far field fades back when the core is parked (keeps rail labels clean).
+    S.far = step(S.far, inp.view.scale < 0.99 ? 0.45 : 1, 4);
+    tu.uFar.value = S.far;
 
-    this.busy = moving || rippling;
+    this.busy = moving || glitch > 0;
   }
 
   /** Mark a state change so the caller renders until it settles. */

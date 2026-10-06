@@ -40,17 +40,17 @@ export default function Dispatch() {
             e.currentTarget.blur();
           }
         }}
-        placeholder="send to agent…"
+        placeholder="SEND TO AGENT…"
         aria-label="send to agent"
         spellCheck={false}
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent text-[10.5px] text-ink caret-active outline-none placeholder:text-ghost"
+        className="min-w-0 flex-1 bg-transparent text-[10.5px] text-ink caret-active outline-none placeholder:text-[9px] placeholder:tracking-[0.24em] placeholder:text-ghost"
       />
-      <button type="button" onClick={cycleRepo} className="text-dim hover:text-ink" title="target repo (click to cycle)">
+      <button type="button" onClick={cycleRepo} className="label text-dim hover:text-ink" title="target repo (click to cycle)">
         {repo}
       </button>
-      <span className="text-ghost">·</span>
-      <button type="button" onClick={cycleAgent} className="text-dim hover:text-ink" title="agent (click to cycle)">
+      <span className="label text-ghost">·</span>
+      <button type="button" onClick={cycleAgent} className="label text-dim hover:text-ink" title="agent (click to cycle)">
         {agent}
       </button>
     </form>

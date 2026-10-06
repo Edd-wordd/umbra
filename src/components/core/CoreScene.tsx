@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { sampleLayout, type CoreLayout, type DomainId } from "@/lib/graph";
+import { sampleTiles, type DomainId, type TileLayout } from "@/lib/graph";
 import type { VoiceState } from "@/lib/store";
 import { voiceLevel } from "@/lib/voice/level";
 import { CORE_HOME, coreFocusView } from "../console/devfocus/layout";
 import { CoreRuntime, type SectorAttention } from "./runtime";
 
 export interface CoreSceneProps {
-  layout?: CoreLayout;
-  /** Sector lit cyan (the awake rail / mode), or null at idle. */
+  layout?: TileLayout;
+  /** Sector lit white (the awake rail / mode), or null at idle. */
   litDomain: DomainId | null;
   voice: VoiceState;
   /**
@@ -23,24 +23,26 @@ export interface CoreSceneProps {
   attention?: Partial<Record<DomainId, Exclude<SectorAttention, null>>>;
   /** Dev focus open: park the core beside the workspace. */
   focus?: boolean;
+  /** Dev focus detail panel open (core moves further right and shrinks). */
+  focusOpen?: boolean;
 }
 
 const IDLE_FPS = 10;
 
-export default function CoreScene({ layout = sampleLayout, litDomain, voice, level, reducedMotion, attention, focus = false }: CoreSceneProps) {
+export default function CoreScene({ layout = sampleTiles, litDomain, voice, level, reducedMotion, attention, focus = false, focusOpen = false }: CoreSceneProps) {
   const invalidate = useThree((s) => s.invalidate);
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const runtime = useMemo(() => new CoreRuntime(layout), [layout]);
   useEffect(() => () => runtime.dispose(), [runtime]);
 
-  const litIndex = litDomain ? layout.sectorIndex[litDomain] : -1;
+  const litIndex = litDomain ? layout.districts.findIndex((d) => d.domain === litDomain) : -1;
   const speaking = voice === "speaking";
   const attn = useMemo(
-    () => layout.sectors.map((sec) => attention?.[sec.domain] ?? null),
+    () => layout.districts.map((d) => attention?.[d.domain] ?? null),
     [layout, attention],
   );
-  const view = useMemo(() => (focus ? coreFocusView(width, height) : CORE_HOME), [focus, width, height]);
+  const view = useMemo(() => (focus ? coreFocusView(width, height, focusOpen) : CORE_HOME), [focus, focusOpen, width, height]);
 
   // Any state change: render until the transition settles.
   useEffect(() => {

@@ -5,7 +5,8 @@ import { AGENT_TONE, SERVER_TONE, shortCwd } from "@/lib/dev/format";
 import { useDevStore } from "@/lib/dev/store";
 import type { TermLine } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
-import { ApprovalStrip, Dot, TEXT_TONE } from "./ui";
+import { ApprovalStrip, glyphState } from "./ui";
+import { Glyph } from "@/components/ui/Glyph";
 
 const LINE_TONE: Record<TermLine["kind"], string> = {
   cmd: "text-ink",
@@ -106,21 +107,20 @@ export default function Terminal() {
 
   return (
     <section aria-label="terminal" className="umbra-fade-in flex min-h-[150px] flex-1 flex-col">
-      <div className="flex h-[16px] items-center gap-[10px] text-[9.5px] leading-none">
-        <span className="tracking-[2px] text-mid">TERMINAL</span>
-        <span className="shrink-0 whitespace-nowrap text-ink">{session.title}</span>
-        <span className="min-w-0 truncate text-dim">
+      <div className="flex h-[16px] items-center gap-[14px]">
+        <span className="label text-dim">TERM</span>
+        <span className="label shrink-0 whitespace-nowrap tracking-[0.16em] text-ink">{session.title}</span>
+        <span className="min-w-0 truncate text-[9.5px] text-ghost">
           {shortCwd(session.cwd)} · {session.branch}
         </span>
-        <span className={`ml-auto flex shrink-0 items-center gap-[6px] tracking-[1px] ${TEXT_TONE[tone]}`}>
-          <Dot tone={tone} />
-          {stateLabel.toUpperCase()}
+        <span className="ml-auto flex shrink-0 items-center gap-[8px]">
+          <Glyph code={stateLabel ? stateLabel.split(" ")[0] : "—"} state={glyphState(tone)} />
         </span>
-        <button type="button" onClick={close} className="shrink-0 text-[10px] text-dim hover:text-ink" aria-label="close terminal" title="close terminal">
+        <button type="button" onClick={close} className="label shrink-0 text-dim hover:text-ink" aria-label="close terminal" title="close terminal">
           ✕
         </button>
       </div>
-      <div className="mt-[8px] flex min-h-0 flex-1 flex-col border border-line bg-black/35">
+      <div className="mt-[10px] flex min-h-0 flex-1 flex-col border border-line bg-black">
         <div
           ref={scroller}
           onClick={() => window.getSelection()?.isCollapsed && input.current?.focus()}
@@ -144,7 +144,7 @@ export default function Terminal() {
           </div>
         )}
         <label className="flex h-[34px] shrink-0 items-center gap-[8px] border-t border-line px-[14px] text-[11px]">
-          <span className="max-w-[45%] shrink-0 truncate text-dim">
+          <span className="label max-w-[45%] shrink-0 truncate text-dim">
             {repo} {session.branch}
           </span>
           <span className="text-active/80">❯</span>

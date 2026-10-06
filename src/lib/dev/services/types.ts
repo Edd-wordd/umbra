@@ -11,7 +11,7 @@ import type { AgentSession, CiRun, DevServer, RepoId } from "../types";
 
 export type ServiceId = string;
 
-/** ok = healthy & quiet (gray), active = something running (cyan), attention = amber, broken = red, idle = not connected. */
+/** ok = healthy & quiet (gray), active = something running (white), attention = amber, broken = red, idle = not connected. */
 export type ServiceStatus = "ok" | "active" | "attention" | "broken" | "idle";
 
 export const STATUS_TONE: Record<ServiceStatus, DevTone> = {
@@ -46,6 +46,8 @@ export interface ServiceAction {
  */
 export interface ServiceNeed {
   tone: "attention" | "broken";
+  /** One short state word for the key/value row (FAILED, LOCAL, AHEAD…). Defaults from tone. */
+  state?: string;
   text: string;
   refs?: string[];
   action?: ServiceAction;
@@ -85,7 +87,7 @@ export interface ServiceContext {
 export interface ServiceAdapter<P = unknown> {
   id: ServiceId;
   label: string;
-  /** Short chip text on the project row. */
+  /** 1–4 char glyph code for its tile (G, S, P, SB, D, F). */
   chip: string;
   /** One line for the "+ service" picker. */
   blurb: string;

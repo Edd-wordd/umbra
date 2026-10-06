@@ -17,7 +17,7 @@ export interface SentryPayload {
 export const sentry = defineService<SentryPayload>({
   id: "sentry",
   label: "sentry",
-  chip: "sentry",
+  chip: "S",
   blurb: "new issues, counts, stack excerpt, CI match",
   read(p, ctx) {
     if (!p) return notConnected("Sentry");
@@ -31,6 +31,7 @@ export const sentry = defineService<SentryPayload>({
       needs: [
         {
           tone: "attention",
+          state: "ISSUE",
           text: `${top.id} ×${top.count24h} · ${top.title.split(":")[0]}`,
           refs: p.issues.map((i) => i.id),
           action: { label: `open ${top.id} ↗`, toolId: "dev.link.open", args: { label: `sentry ${top.id}` } },

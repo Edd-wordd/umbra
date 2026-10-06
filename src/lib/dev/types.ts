@@ -13,7 +13,7 @@ export type RepoId = "umbra" | "parallax" | "deadbridge-site" | "google" | (stri
 export type AgentKind = "cursor" | "codex" | "pi";
 
 /**
- * running  cyan   agent is working
+ * running  white  agent is working
  * waiting  amber  agent is blocked on you (prompt)
  * done     gray   finished; diff ready for review
  * failed   red    stopped on an error (tests, build)

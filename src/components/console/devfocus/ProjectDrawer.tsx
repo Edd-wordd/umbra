@@ -5,7 +5,8 @@ import type { DevProject } from "@/lib/dev/projects";
 import { AGENT_TONE, SERVER_TONE } from "@/lib/dev/format";
 import { STATUS_TONE } from "@/lib/dev/services";
 import { runServiceAction } from "./approval";
-import { Btn, Dot, SectionHead, Spark, TEXT_TONE } from "./ui";
+import { Btn, Dot, SectionHead, Spark, TEXT_TONE, glyphState } from "./ui";
+import { Glyph } from "@/components/ui/Glyph";
 import { useServiceViews, type ServiceItem } from "./useServiceViews";
 
 function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
@@ -14,9 +15,9 @@ function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
   const tone = STATUS_TONE[view.status];
   return (
     <div className={`@container min-w-0 border-t border-line pt-[8px] ${view.wide ? "col-span-2" : ""}`} data-service={adapter.id}>
-      <div className="flex h-[16px] items-center gap-[8px] text-[10px] leading-none">
-        <Dot tone={tone} />
-        <span className="shrink-0 tracking-[1px] text-ink">{adapter.label}</span>
+      <div className="flex h-[16px] items-center gap-[9px] text-[10px] leading-none">
+        <Glyph code={adapter.chip} state={glyphState(tone)} />
+        <span className="label shrink-0 tracking-[0.2em] text-ink">{adapter.label}</span>
         <span className={`min-w-0 truncate ${view.status === "ok" || view.status === "idle" ? "text-dim" : TEXT_TONE[tone]}`} title={view.summary}>{view.summary}</span>
         {view.spark && (
           <span className="hidden shrink-0 @[260px]:inline-flex">
@@ -34,10 +35,10 @@ function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
           </Btn>
         </span>
       </div>
-      <dl className={`mt-[5px] pl-[13px] text-[10px] leading-[17px] ${view.columns === 2 ? "grid grid-cols-2 gap-x-[22px]" : ""}`}>
+      <dl className={`mt-[6px] pl-[24px] text-[10px] leading-[17px] ${view.columns === 2 ? "grid grid-cols-2 gap-x-[22px]" : ""}`}>
         {view.rows.map((r, i) => (
-          <div key={`${r.k}-${i}`} className="flex min-w-0 gap-[10px]">
-            <dt className="w-[78px] shrink-0 truncate text-dim">{r.k}</dt>
+          <div key={`${r.k}-${i}`} className="flex min-w-0 items-center gap-[10px]">
+            <dt className="label w-[78px] shrink-0 truncate tracking-[0.16em] text-dim">{r.k}</dt>
             <dd className={`min-w-0 truncate ${r.tone ? TEXT_TONE[r.tone] : "text-mid"}`} title={r.v}>
               {r.v}
             </dd>
@@ -45,8 +46,8 @@ function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
         ))}
       </dl>
       {view.excerpt && (
-        <pre className="relative ml-[13px] mt-[6px] overflow-x-auto border border-line bg-black/35 py-[6px] pl-[12px] pr-[10px] text-[10px] leading-[16px] text-mid">
-          <span className="absolute -left-px top-[-1px] bottom-[-1px] w-px bg-broken/70" />
+        <pre className="relative ml-[24px] mt-[6px] overflow-x-auto border border-line bg-black py-[6px] pl-[12px] pr-[10px] text-[10px] leading-[16px] text-mid">
+          <span className="absolute -left-px top-[-1px] bottom-[-1px] w-[2px] bg-broken/80" />
           {view.excerpt.map((l, i) => (
             <div key={i} className={i === 0 ? "text-broken/90" : i === view.excerpt!.length - 1 ? "text-dim" : ""}>
               {l}
@@ -74,7 +75,7 @@ function Sessions({ repo }: { repo: string }) {
       key={id}
       type="button"
       onClick={onClick}
-      className={`flex h-[20px] items-center gap-[6px] border px-[7px] text-[9.5px] transition-colors ${
+      className={`flex h-[18px] items-center gap-[6px] border px-[6px] text-[8.5px] uppercase tracking-[0.14em] transition-colors ${
         sel ? "border-line-strong bg-panel-raised text-ink" : "border-line text-mid hover:border-line-strong hover:text-ink"
       }`}
     >
@@ -83,7 +84,7 @@ function Sessions({ repo }: { repo: string }) {
   );
   return (
     <div className="mt-[8px] flex flex-wrap items-center gap-[6px]" data-sessions={repo}>
-      <span className="mr-[4px] text-[9.5px] text-dim">sessions</span>
+      <span className="label mr-[6px] text-ghost">SESSIONS</span>
       {mine.map((a) =>
         tag(a.id, a.sessionId === selectedId, () => select(a.sessionId), (
           <>

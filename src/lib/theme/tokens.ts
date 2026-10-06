@@ -1,24 +1,25 @@
 /**
  * JS mirror of the CSS design tokens in src/app/globals.css, for places that
  * cannot read CSS variables (WebGL shaders). Keep both in sync.
+ * "Dataland" system: black, white, grays; red = broken; amber = needs you.
  */
 export const color = {
-  bg: "#060708",
-  panel: "#08090b",
-  line: "#1d2024",
-  ghost: "#2a2e33",
-  dim: "#4a5058",
-  mid: "#7d848c",
-  ink: "#aab1b9",
-  core: "#9aa3ad",
-  cyan: "#3fe3ff",
-  amber: "#ffb648",
-  red: "#ff5252",
+  bg: "#000000",
+  panel: "#000000",
+  line: "#1c1c1c",
+  ghost: "#3d3d3d",
+  dim: "#5c5c5c",
+  mid: "#8f8f8f",
+  ink: "#d4d4d4",
+  core: "#b8b8b8",
+  white: "#f5f5f5",
+  amber: "#d6a248",
+  red: "#ff3b30",
 } as const;
 
-/** Activity palette: color only ever encodes state. */
+/** Activity palette: white = active, amber = needs you, red = broken. */
 export const activity = {
-  active: color.cyan,
+  active: color.white,
   attention: color.amber,
   broken: color.red,
 } as const;

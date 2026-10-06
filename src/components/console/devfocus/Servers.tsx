@@ -6,7 +6,8 @@ import { useDevStore } from "@/lib/dev/store";
 import type { DockerPayload } from "@/lib/dev/services/docker";
 import type { DevServer } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
-import { ApprovalStrip, Btn, Dot, TEXT_TONE } from "./ui";
+import { ApprovalStrip, Btn, TEXT_TONE } from "./ui";
+import { Glyph } from "@/components/ui/Glyph";
 
 function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
   const select = useDevStore((st) => st.select);
@@ -34,14 +35,15 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
         }`}
       >
         {selected && <span className="absolute inset-y-[4px] left-0 w-[2px] bg-mid" />}
-        <Dot tone={tone} pulse={s.state === "starting"} />
-        <span className={`w-[40px] shrink-0 tabular-nums ${s.state === "free" || s.state === "stopped" ? "text-dim" : "text-ink"}`}>:{s.port}</span>
-        <span className="shrink-0 text-ink">{who}</span>
+        <span className="flex w-[40px] shrink-0">
+          <Glyph code={`:${s.port}`} state={s.state === "running" || s.state === "starting" ? "active" : s.state === "stale" ? "attention" : "idle"} />
+        </span>
+        <span className="label shrink-0 tracking-[0.16em] text-ink">{who}</span>
         <span className="min-w-0 truncate text-dim">{what}</span>
         <span className="ml-auto flex shrink-0 items-center gap-[8px]">
           {s.state === "stale" && !holding && (
             <>
-              <span className="text-[10px] text-attention">{s.note}</span>
+              <span className="label text-attention">ORPHAN</span>
               <Btn tone="attention" onClick={() => requestKill(s.port)}>
                 KILL
               </Btn>
@@ -49,13 +51,13 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
           )}
           {s.state === "stopped" && <Btn onClick={() => start(s.id)}>START</Btn>}
           {(s.state === "running" || s.state === "starting" || s.state === "free" || holding) && (
-            <span className={`text-[9.5px] tracking-[1px] ${holding ? "text-attention" : TEXT_TONE[tone]}`}>{holding ? "HELD" : label}</span>
+            <span className={`label ${holding ? "text-attention" : TEXT_TONE[tone]}`}>{holding ? "HELD" : label}</span>
           )}
         </span>
       </div>
       {containers.length > 0 && (
-        <div className="flex h-[18px] items-center gap-[10px] pl-[73px] pr-[12px] text-[9.5px] text-dim" data-containers={s.repo}>
-          <span className="text-ghost">docker</span>
+        <div className="flex h-[18px] items-center gap-[10px] pl-[60px] pr-[12px] text-[9.5px] text-dim" data-containers={s.repo}>
+          <Glyph code="D" state="idle" size="xs" />
           {containers.map((c) => (
             <span key={c.name} className={`flex items-center gap-[4px] ${c.state === "running" ? "" : c.state === "restarting" ? "text-attention" : "text-broken"}`}>
               <span className={`h-[3px] w-[3px] rounded-full ${c.state === "running" ? "bg-mid" : c.state === "restarting" ? "bg-attention" : "bg-broken"}`} />
@@ -89,17 +91,15 @@ export default function Servers() {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex h-[22px] w-full items-center gap-[8px] text-left text-[10px] text-dim hover:text-mid"
+        className="flex h-[22px] w-full items-center gap-[12px] text-left text-dim hover:text-mid"
       >
-        <span className="w-[10px] text-ghost">{open ? "▾" : "▸"}</span>
-        <span className="tracking-[1px]">servers</span>
-        <span>· {running.length} running</span>
+        <span className="label w-[10px] text-ghost">{open ? "▾" : "▸"}</span>
+        <span className="label">SERVERS</span>
+        <span className="label text-ghost">{running.length} RUNNING</span>
         {running.map((s) => (
-          <span key={s.id} className="tabular-nums text-active/70">
-            :{s.port}
-          </span>
+          <Glyph key={s.id} code={`:${s.port}`} state="active" />
         ))}
-        {stale > 0 && <span className="text-attention/80">· {stale} stale</span>}
+        {stale > 0 && <span className="label text-attention/90">{stale} STALE</span>}
       </button>
       {open && (
         <ul className="umbra-fade-in -mx-[12px] mt-[4px]">

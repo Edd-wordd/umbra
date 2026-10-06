@@ -13,8 +13,12 @@ export interface Need {
   key: string;
   kind: NeedKind;
   tone: "attention" | "broken";
-  /** Repo, or the port for an orphan process. */
+  /** Repo, or the pid for an orphan process. */
   who: string;
+  /** Glyph code for the source (AG agent, :3000 port, G github…). */
+  code: string;
+  /** Short state word (WAITING, FAILED, ORPHAN, HELD, …). */
+  state: string;
   repo?: RepoId;
   text: string;
   /** Service needs folded into this line because they are about the same failure. */
@@ -32,7 +36,7 @@ export interface NeedsInput {
   pending: PendingApproval | null;
   /** Session the terminal shows; a command held there is already in front of him. */
   selectedId: string;
-  views: Record<string, readonly { adapter: { id: string; label: string }; view: ServiceView }[]>;
+  views: Record<string, readonly { adapter: { id: string; label: string; chip: string }; view: ServiceView }[]>;
 }
 
 export function deriveNeeds({ agents, servers, pending, selectedId, views }: NeedsInput): Need[] {
@@ -40,12 +44,12 @@ export function deriveNeeds({ agents, servers, pending, selectedId, views }: Nee
 
   if (pending?.origin === "terminal" && pending.sessionId !== selectedId) {
     const a = agents.find((x) => x.sessionId === pending.sessionId);
-    out.push({ key: `held-${pending.id}`, kind: "held", tone: "attention", who: a?.repo ?? "terminal", repo: a?.repo, text: `held \`${pending.command}\` · ${pending.reason}`, folded: [] });
+    out.push({ key: `held-${pending.id}`, kind: "held", tone: "attention", code: "$", state: "HELD", who: a?.repo ?? "terminal", repo: a?.repo, text: pending.command, folded: [] });
   }
 
   for (const a of agents) {
     if (a.state === "waiting" && a.prompt)
-      out.push({ key: a.id, kind: "agent-waiting", tone: "attention", who: a.repo, repo: a.repo, text: `${a.agent} · ${a.prompt.title.toLowerCase()}`, folded: [], agent: a });
+      out.push({ key: a.id, kind: "agent-waiting", tone: "attention", code: "AG", state: "WAITING", who: a.repo, repo: a.repo, text: `${a.agent} · ${a.prompt.title.toLowerCase()}`, folded: [], agent: a });
   }
 
   const failedRefs = new Map<string, Need>();
@@ -55,9 +59,11 @@ export function deriveNeeds({ agents, servers, pending, selectedId, views }: Nee
       key: a.id,
       kind: "agent-failed",
       tone: "broken",
+      code: "AG",
+      state: "FAILED",
       who: a.repo,
       repo: a.repo,
-      text: `✕ ${a.failure.tests[0]?.split(" › ").pop() ?? a.failure.summary}`,
+      text: `${a.agent} · ${a.failure.summary}`,
       folded: [],
       agent: a,
       sentryId: a.failure.sentryId,
@@ -68,7 +74,7 @@ export function deriveNeeds({ agents, servers, pending, selectedId, views }: Nee
 
   for (const s of servers) {
     if (s.state === "stale" && s.pid)
-      out.push({ key: s.id, kind: "port", tone: "attention", who: `:${s.port}`, text: `pid ${s.pid} ${s.command} · orphan`, folded: [], server: s });
+      out.push({ key: s.id, kind: "port", tone: "attention", code: `:${s.port}`, state: "ORPHAN", who: `pid ${s.pid}`, text: s.command, folded: [], server: s });
   }
 
   const services: Need[] = [];
@@ -80,7 +86,19 @@ export function deriveNeeds({ agents, servers, pending, selectedId, views }: Nee
           host.folded.push({ service: adapter.label, text: need.text });
           return;
         }
-        services.push({ key: `${repo}-${adapter.id}-${i}`, kind: "service", tone: need.tone, who: repo, repo, text: need.text, folded: [], serviceId: adapter.id, action: need.action });
+        services.push({
+          key: `${repo}-${adapter.id}-${i}`,
+          kind: "service",
+          tone: need.tone,
+          code: adapter.chip,
+          state: need.state ?? (need.tone === "broken" ? "FAILED" : "CHECK"),
+          who: repo,
+          repo,
+          text: need.text,
+          folded: [],
+          serviceId: adapter.id,
+          action: need.action,
+        });
       });
     }
   }

@@ -16,6 +16,8 @@ export const DEV_FOCUS = {
   reserve: 500,
   /** Right rails' footprint. */
   railGutter: 110,
+  /** Slim left column shown by default; the right panel slides open on selection. */
+  slim: 470,
 } as const;
 
 const { left, reserve, minWidth, maxWidth } = DEV_FOCUS;
@@ -36,14 +38,19 @@ export interface CoreView {
 
 export const CORE_HOME: CoreView = { x: 0, y: 0, scale: 1 };
 
-/** Where the core sits while the Dev focus is open: centered in the free strip right of the panel. */
-export function coreFocusView(vw: number, vh: number): CoreView {
+/**
+ * Where the core sits while the Dev focus is open: centered in the free strip
+ * right of the slim column (large), or right of the full panel once the
+ * detail panel has slid open (small).
+ */
+export function coreFocusView(vw: number, vh: number, open = true): CoreView {
   const zoom = Math.min(vw / FRAME.width, vh / FRAME.height);
-  const from = DEV_FOCUS.left + devFocusWidth(vw);
+  const from = DEV_FOCUS.left + (open ? devFocusWidth(vw) : DEV_FOCUS.slim);
   const to = vw - DEV_FOCUS.railGutter;
   const cx = (from + to) / 2;
   const cy = (DEV_FOCUS.top + vh - DEV_FOCUS.bottom) / 2;
-  // Dial + ticks radius ~ 276 frame px.
-  const scale = Math.max(0.3, Math.min(0.62, (to - from - 48) / (2 * 276 * zoom)));
+  // Structure + rim labels radius ~ 290 frame px.
+  const fit = (to - from - 48) / (2 * 290 * zoom);
+  const scale = Math.max(0.3, Math.min(open ? 0.62 : 0.86, fit));
   return { x: (cx - vw / 2) / zoom, y: -(cy - vh / 2) / zoom, scale };
 }

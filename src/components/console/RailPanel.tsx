@@ -72,7 +72,7 @@ export default function RailPanel() {
   return (
     <>
       <div
-        className="pointer-events-none absolute h-px bg-active/60"
+        className="pointer-events-none absolute h-px bg-active/50"
         style={{ top: pct(rail.y), ...(left ? { left: labelEnd, width: 100 - labelEnd } : { right: labelEnd, width: 112 - labelEnd }) }}
       />
       <section
@@ -80,26 +80,26 @@ export default function RailPanel() {
         data-keep-rail
         data-panel={id}
         aria-label={`${rail.label} rail`}
-        className={`absolute top-[120px] flex max-h-[calc(100%-240px)] w-[400px] flex-col border border-line bg-panel ${
+        className={`umbra-scan absolute top-[120px] flex max-h-[calc(100%-240px)] w-[400px] flex-col border border-line bg-panel ${
           left ? "umbra-slide-left left-[100px]" : "umbra-slide-right right-[112px]"
         }`}
       >
-        <span className={`glow-active absolute top-[-1px] bottom-[-1px] w-px bg-active/70 ${left ? "-left-px" : "-right-px"}`} />
+        <span className={`absolute top-[-1px] bottom-[-1px] w-px bg-active/80 ${left ? "-left-px" : "-right-px"}`} />
         <header className="px-5 pt-[20px]">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-[12px] font-normal tracking-[4px] text-active">{rail.label}</h2>
-            <span className="border border-attention/50 px-[6px] py-[2px] text-[9.5px] tracking-[2px] text-attention/80">
-              SAMPLE DATA
-            </span>
+            <h2 className="label text-[11px] font-normal tracking-[0.36em] text-active">{rail.label}</h2>
+            <span className="label border border-ghost px-[6px] py-[3px] text-[8px] text-dim">SAMPLE</span>
           </div>
-          <p className="mt-[8px] text-[9.5px] text-dim">touched {formatClock(new Date(since))} · esc / 20s idle to collapse</p>
+          <p className="label mt-[10px] text-[8px] text-ghost">
+            <span className="text-dim">TOUCHED</span> {formatClock(new Date(since))} · ESC / 20S IDLE
+          </p>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
           {content.sections.map((sec) => (
             <div key={sec.title} className="mt-[20px] border-t border-line pt-[12px]">
-              <div className="flex justify-between text-[9.5px]">
-                <span className="tracking-[2px] text-mid">{sec.title}</span>
-                {sec.source && <span className="text-dim">{sec.source}</span>}
+              <div className="flex justify-between">
+                <span className="label text-dim">{sec.title}</span>
+                {sec.source && <span className="label text-[8px] text-ghost">{sec.source}</span>}
               </div>
               <div className="mt-[6px]">
                 {sec.rows.map((row, i) => (
@@ -118,14 +118,14 @@ export default function RailPanel() {
             </div>
           ))}
         </div>
-        <footer className="flex items-center justify-between border-t border-line px-5 py-[14px] text-[10px]">
+        <footer className="flex items-center justify-between border-t border-line px-5 py-[14px]">
           <div className="flex gap-[16px]">
-            {content.actions.length === 0 && <span className="text-ghost">no actions yet</span>}
+            {content.actions.length === 0 && <span className="label text-ghost">NO ACTIONS YET</span>}
             {content.actions.map((a) => (
               <button
                 key={a.toolId}
                 type="button"
-                className="text-dim transition-colors hover:text-ink"
+                className="label border border-line-strong px-[7px] py-[4px] text-[8.5px] text-mid transition-colors hover:border-active hover:text-active"
                 title={a.toolId}
                 onClick={() => openPalette(a.toolId)}
               >
@@ -133,7 +133,7 @@ export default function RailPanel() {
               </button>
             ))}
           </div>
-          <span className="text-[9.5px] text-ghost">say or ⌘K</span>
+          <span className="label text-[8px] text-ghost">SAY OR ⌘K</span>
         </footer>
       </section>
     </>

@@ -37,20 +37,20 @@ Deep links for demos: `/?focus=dev` (or `/?rail=dev`) opens the Dev focus; `/?ra
 
 ### Dev focus (MOCK)
 
-Clicking the DEV tick opens the Dev rail as a workspace instead of the narrow panel. It stays awake while open (no 20 s collapse, no click-outside close); `Esc`, `esc ✕` or the DEV tick closes it. The core slides right and shrinks so the brain stays visible.
+Clicking the DEV tick opens the Dev rail as a workspace instead of the narrow panel. It stays awake while open (no 20 s collapse, no click-outside close); `Esc`, `esc ✕` or the DEV tick closes it. By default it is one slim column beside the core (core stays large); selecting a need, project, session or server slides a detail panel open to its right (`✕` / close collapses it again) and the core moves over and shrinks.
 
 Everything is SAMPLE data from `src/lib/mock/dev.ts`; nothing runs a process, opens a socket or touches the filesystem.
 
 The default view is deliberately short: what needs you, one line per project, everything else one click away. `/?focus=dev&mock=quiet` loads a good-day sample (all quiet).
 
 - **Needs you** (top): only actionable lines, derived from live state (`src/lib/dev/needs.ts`), never hand-listed: an agent waiting on you (inline Approve / Deny), a failed agent (its CI run and Sentry issue fold into the same line; `≈ SAMPLE-7Q` opens the project), a stale port holder (Kill → amber approval → `dev.port.free`), a held terminal command, and any service need (an adapter's attention/broken status, e.g. umbra "6 commits not backed up · no remote"). Nothing pending shows one calm "all quiet" line.
-- **Projects**: one line per repo (`src/lib/dev/projects.ts`). Healthy = gray dot + name + tiny summary; only attention/broken services get an amber/red chip. Running agents are a small cyan marker (click → its session); running ports are cyan `:3002` (click → its log); `+` (on hover) attaches an unused adapter. Click a line to open the project on the right: its sessions (agents, dev servers, Diff / Start) and the service cards (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker containers, Figma). `×` on a card detaches it.
+- **Projects**: one line per repo (`src/lib/dev/projects.ts`). Spaced uppercase name + one glyph tile per attached service (gray when healthy, amber notch = attention, red = broken) + a tiny summary. Running agents are a solid white `AG` tile (click → its session); running ports are a solid white `:3002` tile (click → its log); `+` (on hover) attaches an unused adapter. Click a line to open the project on the right: its sessions (agents, dev servers, Diff / Start) and the service cards (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker containers, Figma). `×` on a card detaches it.
 - **Terminal** (on demand): hidden until you pick a need, an agent marker, a session or a server; `✕` hides it again. Plain DOM transcript plus a command line (`help` lists the sample commands, `↑`/`↓` history). Commands with `rm`, `push`, `--force`, `reset --hard`, `kill` or `sudo` are held behind an amber "needs your yes" strip (`y ⏎` approves, `n` / `Esc` denies).
 - **Servers**: one muted `servers · 1 running` line that expands to the port list (Kill / Start, project containers under their dev server). General Docker stays on the Homelab rail.
 - **Where you left off**: a 1–3 line card on the first open only; folds after the first click or 30 s. Reopen with `left off ↺` in the header or ⌘K "Where I left off".
 - **Send to agent**: one quiet input line at the bottom of the left column (or ⌘K "Send to agent…"); the new agent's session opens in the terminal. Click the repo / agent names to change the target.
 - **Activity**: a single latest-line strip at the bottom; click it for the full log.
-- **Brain tie-in**: a failed or waiting agent puts a red / amber bracket on the core's Dev sector and a dot on the DEV tick, even at idle.
+- **Brain tie-in**: a failed or waiting agent puts red / amber corner brackets on the core's Dev district and a dot on the DEV tick, even at idle.
 - **⌘K**: `dev.focus.open`, `dev.projects.open` (Open Dev projects), `dev.handoff.open` (Where I left off), `dev.dispatch.focus` (Send to agent…), `dev.tests.run` (Run parallax tests), `dev.ci.rerun` (Rerun failing CI, needs confirm), `dev.port.free` (Free port 3000, needs confirm), `dev.sessions.resume`. Service card links go through `dev.link.open` (logs only; there is no browser in the mockup).
 
 #### Adding a service

@@ -30,12 +30,12 @@ export default function Handoff() {
   const shown = items.slice(0, 3);
 
   return (
-    <section aria-label="where you left off" data-handoff className="umbra-fade-in shrink-0 border border-line px-[12px] py-[8px]">
-      <div className="flex h-[16px] items-center gap-[10px] text-[9.5px] leading-none">
-        <span className="tracking-[2px] text-mid">LEFT OFF</span>
-        <span className="text-dim">
+    <section aria-label="where you left off" data-handoff className="umbra-fade-in shrink-0 border border-line px-[12px] py-[9px]">
+      <div className="flex h-[16px] items-center gap-[14px]">
+        <span className="label text-mid">LEFT OFF</span>
+        <span className="label text-ghost">
           {formatClock(new Date(handoff.at))}
-          {items.length > shown.length ? ` · ${items.length} repos` : ""}
+          {items.length > shown.length ? ` · ${items.length} REPOS` : ""}
         </span>
         <span className="ml-auto flex items-center gap-[4px]">
           <Btn tone="quiet" onClick={() => resume()}>
@@ -46,11 +46,11 @@ export default function Handoff() {
           </Btn>
         </span>
       </div>
-      <ul className="mt-[5px]">
+      <ul className="mt-[7px]">
         {shown.map((h) => (
-          <li key={h.repo} className="flex h-[18px] items-center gap-[10px] text-[10px]">
+          <li key={h.repo} className="flex h-[19px] items-center gap-[10px] text-[10px]">
             <Dot tone={h.tone} />
-            <span className="w-[100px] shrink-0 truncate text-mid">{h.repo}</span>
+            <span className="label w-[118px] shrink-0 truncate tracking-[0.16em] text-mid">{h.repo}</span>
             <span className={`min-w-0 truncate ${h.tone === "broken" ? "text-broken/80" : "text-dim"}`}>{h.summary}</span>
           </li>
         ))}

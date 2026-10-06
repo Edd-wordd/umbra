@@ -13,7 +13,7 @@ export interface SupabasePayload {
 export const supabase = defineService<SupabasePayload>({
   id: "supabase",
   label: "supabase",
-  chip: "supa",
+  chip: "SB",
   blurb: "db size, hot tables, auth, edge functions",
   read(p) {
     if (!p) return notConnected("Supabase");

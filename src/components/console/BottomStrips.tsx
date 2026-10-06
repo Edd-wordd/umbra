@@ -12,31 +12,34 @@ export default function BottomStrips() {
       <button
         type="button"
         onClick={() => openPalette()}
-        className="group absolute bottom-[35px] left-10 flex items-center gap-[10px] text-[10px]"
+        className="group absolute bottom-[35px] left-10 flex items-center gap-[10px]"
         aria-label="open command palette"
       >
-        <span className="flex h-[18px] w-[30px] items-center justify-center border border-ghost text-dim group-hover:border-dim">
+        <span className="flex h-[17px] w-[28px] items-center justify-center border border-ghost text-[9px] text-dim group-hover:border-mid group-hover:text-ink">
           ⌘K
         </span>
-        <span className="tracking-[1px] text-ghost group-hover:text-dim">command</span>
+        <span className="label text-ghost group-hover:text-dim">COMMAND</span>
       </button>
 
       {mode !== "voice" && (
         <div className="absolute bottom-[30px] left-1/2 w-[360px] -translate-x-1/2" aria-label="focus">
-          <div className="flex items-baseline text-[10px] leading-none">
-            <span className="tracking-[2px] text-dim">FOCUS</span>
-            <span className="ml-[22px] text-mid">wireframe review</span>
-            <span className="ml-auto text-dim tabular-nums">00:42</span>
+          <div className="flex items-baseline">
+            <span className="label text-dim">FOCUS</span>
+            <span className="label ml-[22px] text-ink">WIREFRAME REVIEW</span>
+            <span className="label ml-auto tabular-nums text-mid">00:42</span>
           </div>
-          <div className="relative mt-[8px] h-px bg-line">
-            <div className="absolute inset-y-0 left-0 w-[100px] bg-dim" />
+          {/* Solid white progress bar on a hairline track. */}
+          <div className="relative mt-[9px] h-[2px]">
+            <div className="absolute inset-x-0 top-1/2 h-px bg-line" />
+            <div className="absolute inset-y-0 left-0 w-[28%] bg-active/85" />
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-[37px] right-[104px] flex gap-[22px] text-[10px] leading-none" aria-label="comms">
-        <span className="tracking-[2px] text-dim">COMMS</span>
-        <span className="text-dim">2 unread · 0 urgent</span>
+      <div className="absolute bottom-[37px] right-[104px] flex gap-[18px]" aria-label="comms">
+        <span className="label text-dim">COMMS</span>
+        <span className="label text-mid">02 UNREAD</span>
+        <span className="label text-ghost">00 URGENT</span>
       </div>
     </div>
   );

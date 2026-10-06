@@ -4,7 +4,9 @@ import { deriveNeeds, type Need } from "@/lib/dev/needs";
 import type { RepoId } from "@/lib/dev/types";
 import { useDevStore } from "@/lib/dev/store";
 import { approvePending, denyPending, runServiceAction } from "./approval";
-import { ApprovalStrip, Btn, Dot, SectionHead } from "./ui";
+import { ApprovalStrip, Btn, SectionHead } from "./ui";
+import { Glyph } from "@/components/ui/Glyph";
+import { useGlitch } from "@/lib/hooks/useGlitch";
 import type { ServiceItem } from "./useServiceViews";
 
 const openProject = (repo: RepoId) => useDevStore.setState({ expandedProject: repo, pickerFor: null });
@@ -20,18 +22,18 @@ function Actions({ n }: { n: Need }) {
       return (
         <>
           <Btn tone="attention" onClick={() => void approvePending()}>
-            APPROVE
+            YES
           </Btn>
-          <Btn onClick={denyPending}>DENY</Btn>
+          <Btn onClick={denyPending}>NO</Btn>
         </>
       );
     case "agent-waiting":
       return (
         <>
           <Btn tone="attention" onClick={() => respond(n.agent!.id, "approve")} title={n.agent!.prompt?.detail}>
-            APPROVE
+            YES
           </Btn>
-          <Btn onClick={() => respond(n.agent!.id, "deny")}>DENY</Btn>
+          <Btn onClick={() => respond(n.agent!.id, "deny")}>NO</Btn>
         </>
       );
     case "agent-failed":
@@ -48,7 +50,7 @@ function Actions({ n }: { n: Need }) {
       ) : null;
     case "port":
       return holding ? (
-        <span className="text-[9.5px] tracking-[1px] text-attention">HELD</span>
+        <span className="label text-attention">HELD</span>
       ) : (
         <Btn tone="attention" onClick={() => requestKill(n.server!.port)} title={`kill ${n.server!.pid} · needs your yes`}>
           KILL
@@ -60,7 +62,7 @@ function Actions({ n }: { n: Need }) {
           {n.action.label}
         </Btn>
       ) : (
-        <span className="px-[4px] text-[10px] text-ghost">›</span>
+        <span className="label px-[4px] text-ghost">›</span>
       );
   }
 }
@@ -80,19 +82,31 @@ function NeedRow({ n }: { n: Need }) {
     else if (n.kind === "service" && n.repo) openProject(n.repo);
   };
 
+  const glitch = useGlitch<HTMLLIElement>(n.tone);
+  const stateCls = n.tone === "broken" ? "text-broken" : "text-attention";
+  const detail = n.agent?.failure?.tests[0] ?? n.agent?.prompt?.detail;
+
   return (
-    <li data-need={n.kind} data-tone={n.tone} title={n.folded.length ? `also: ${n.folded.map((f) => `${f.service} ${f.text}`).join(" · ")}` : undefined}>
+    <li
+      data-need={n.kind}
+      data-tone={n.tone}
+      ref={glitch}
+      title={[detail, n.folded.length ? `also: ${n.folded.map((f) => `${f.service} ${f.text}`).join(" · ")}` : ""].filter(Boolean).join("\n") || undefined}
+    >
       <div
         onClick={onClick}
-        className={`relative flex h-[30px] items-center gap-[8px] px-[12px] text-[10.5px] transition-colors ${
-          n.kind === "port" ? "" : "cursor-pointer hover:bg-panel-raised/50"
-        } ${active ? "bg-panel-raised" : ""}`}
+        className={`relative flex h-[30px] items-center gap-[10px] px-[12px] transition-colors ${n.kind === "port" ? "" : "cursor-pointer hover:bg-panel-raised"} ${
+          active ? "bg-panel-raised" : ""
+        }`}
       >
-        {active && <span className="absolute inset-y-[5px] left-0 w-[2px] bg-mid" />}
-        <Dot tone={n.tone} pulse={false} />
-        <span className="w-[92px] shrink-0 truncate text-ink">{n.who}</span>
-        <span className="min-w-0 truncate text-mid">{n.text}</span>
-        <span className="ml-auto flex shrink-0 items-center gap-[6px]">
+        {active && <span className="absolute inset-y-[6px] left-0 w-[2px] bg-active" />}
+        <span className="flex w-[34px] shrink-0">
+          <Glyph code={n.code} state={n.tone} />
+        </span>
+        <span className="label w-[90px] shrink-0 truncate tracking-[0.16em] text-ink">{n.who}</span>
+        <span className={`label w-[58px] shrink-0 truncate tracking-[0.16em] ${stateCls}`}>{n.state}</span>
+        <span className="min-w-0 truncate text-[10px] text-mid">{n.text}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-[5px] pl-[4px]">
           <Actions n={n} />
         </span>
       </div>
@@ -116,13 +130,15 @@ export default function NeedsYou({ views }: { views: Record<string, ServiceItem[
 
   return (
     <section aria-label="needs you" className="shrink-0">
-      <SectionHead title="NEEDS YOU" meta={needs.length ? String(needs.length) : undefined} />
+      <SectionHead title="NEEDS YOU" meta={needs.length ? String(needs.length).padStart(2, "0") : "00"} />
       {needs.length === 0 ? (
-        <div className="mt-[8px] flex h-[30px] items-center gap-[10px] text-[10.5px]" data-quiet>
-          <Dot tone="mid" />
-          <span className="text-mid">all quiet</span>
-          <span className="text-dim">
-            · nothing needs you{working ? ` · ${working} agent${working === 1 ? "" : "s"} working` : ""}
+        <div className="mt-[10px] flex h-[30px] items-center gap-[10px]" data-quiet>
+          <span className="flex w-[34px] shrink-0">
+            <Glyph code="—" state="idle" />
+          </span>
+          <span className="label w-[90px] shrink-0 tracking-[0.16em] text-ink">ALL QUIET</span>
+          <span className="label tracking-[0.16em] text-dim">
+            NOTHING NEEDS YOU{working ? ` · ${working} AGENT${working === 1 ? "" : "S"} WORKING` : ""}
           </span>
         </div>
       ) : (
