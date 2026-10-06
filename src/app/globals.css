@@ -1,1 +1,186 @@
 @import "tailwindcss";
+
+/*
+ * Umbra design tokens (see DESIGN.md).
+ * Near-black void, faint grid, 1px lines, monospace, zero radius.
+ * Color is reserved for activity: cyan = active, amber = attention, red = broken.
+ * JS mirror for WebGL lives in src/lib/theme/tokens.ts; keep the two in sync.
+ */
+:root {
+  --umbra-bg: #060708;
+  --umbra-panel: #08090b;
+  --umbra-panel-raised: #0e1114;
+  --umbra-line: #1d2024;
+  --umbra-line-strong: #2a2f35;
+  --umbra-ghost: #2a2e33;
+  --umbra-dim: #4a5058;
+  --umbra-mid: #7d848c;
+  --umbra-ink: #aab1b9;
+  --umbra-core: #9aa3ad;
+
+  --umbra-cyan: #3fe3ff;
+  --umbra-amber: #ffb648;
+  --umbra-red: #ff5252;
+
+  --umbra-grid-minor: rgba(170, 180, 190, 0.028);
+  --umbra-grid-major: rgba(170, 180, 190, 0.055);
+  --umbra-grid-step: 40px;
+  --umbra-grid-step-major: 200px;
+
+  --umbra-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+
+@theme inline {
+  --color-bg: var(--umbra-bg);
+  --color-panel: var(--umbra-panel);
+  --color-panel-raised: var(--umbra-panel-raised);
+  --color-line: var(--umbra-line);
+  --color-line-strong: var(--umbra-line-strong);
+  --color-ghost: var(--umbra-ghost);
+  --color-dim: var(--umbra-dim);
+  --color-mid: var(--umbra-mid);
+  --color-ink: var(--umbra-ink);
+  --color-core: var(--umbra-core);
+  --color-active: var(--umbra-cyan);
+  --color-attention: var(--umbra-amber);
+  --color-broken: var(--umbra-red);
+
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
+  --font-sans: var(--font-mono);
+
+  /* No rounded corners anywhere. */
+  --radius-*: initial;
+  --radius-none: 0px;
+
+  --ease-umbra: var(--umbra-ease);
+}
+
+@layer base {
+  /* Square by default; only true circles (dots, voice ring) opt in with rounded-full. */
+  *,
+  *::before,
+  *::after {
+    border-radius: 0;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    background: var(--umbra-bg);
+    color: var(--umbra-ink);
+    font-family: var(--font-mono);
+    font-weight: 300;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--umbra-cyan) 25%, transparent);
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--umbra-cyan);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Faint two-scale grid + vignette. Never busy wallpaper. */
+  .umbra-grid {
+    background-color: var(--umbra-bg);
+    background-image:
+      linear-gradient(to right, var(--umbra-grid-major) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--umbra-grid-major) 1px, transparent 1px),
+      linear-gradient(to right, var(--umbra-grid-minor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--umbra-grid-minor) 1px, transparent 1px);
+    background-size:
+      var(--umbra-grid-step-major) var(--umbra-grid-step-major),
+      var(--umbra-grid-step-major) var(--umbra-grid-step-major),
+      var(--umbra-grid-step) var(--umbra-grid-step),
+      var(--umbra-grid-step) var(--umbra-grid-step);
+  }
+
+  .umbra-vignette {
+    background: radial-gradient(
+      ellipse 70% 70% at 50% 50%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.65) 100%
+    );
+  }
+
+  /* Activity glow: only applied to things that are active. */
+  .glow-active {
+    filter: drop-shadow(0 0 3px var(--umbra-cyan));
+  }
+  .glow-attention {
+    filter: drop-shadow(0 0 3px var(--umbra-amber));
+  }
+  .glow-broken {
+    filter: drop-shadow(0 0 3px var(--umbra-red));
+  }
+}
+
+@keyframes umbra-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.animate-umbra-ring {
+  animation: umbra-ring 1.6s ease-out infinite;
+}
+
+@keyframes umbra-slide-left {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+}
+@keyframes umbra-slide-right {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+@keyframes umbra-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes umbra-pop {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
+.umbra-slide-left {
+  animation: umbra-slide-left 220ms var(--umbra-ease) both;
+}
+.umbra-slide-right {
+  animation: umbra-slide-right 220ms var(--umbra-ease) both;
+}
+.umbra-fade-in {
+  animation: umbra-fade-in 400ms ease-out both;
+}
+.umbra-pop {
+  animation: umbra-pop 160ms var(--umbra-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
