@@ -7,6 +7,7 @@ const pct = (y: number) => `${((y / 1080) * 100).toFixed(3)}%`;
 
 function Tick({ rail, awake, dimmed }: { rail: RailDef; awake: boolean; dimmed: boolean }) {
   const toggleRail = useUmbra((s) => s.toggleRail);
+  const attn = useUmbra((s) => s.attention[rail.id]);
   const left = rail.side === "left";
   return (
     <button
@@ -33,6 +34,13 @@ function Tick({ rail, awake, dimmed }: { rail: RailDef; awake: boolean; dimmed: 
       >
         {rail.label}
       </span>
+      {attn && (
+        <span
+          title={attn.note}
+          data-attention={attn.level}
+          className={`h-[4px] w-[4px] rounded-full ${attn.level === "broken" ? "bg-broken glow-broken" : "bg-attention glow-attention"}`}
+        />
+      )}
     </button>
   );
 }

@@ -2,7 +2,7 @@
 
 > Personal life OS · interactive agent (not a dashboard)  
 > Product, bot, and repo: **Umbra**  
-> Last updated: 2026-10-05 9:55 PM MT
+> Last updated: 2026-10-05 11:10 PM MT
 
 Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
@@ -50,6 +50,8 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] PostHog integration
 - [x] Figma integration
 - [x] **NO WakaTime** (explicitly excluded)
+- [x] Dev focus **mockup** (sample data): agent watch, terminal with risky-command approval, ports, CI ↔ Sentry, hand-off, dispatch, activity strip, core attention
+- [ ] Dev focus on live data: Mac-helper terminal bridge (PTY sessions, agent prompts, lsof) behind the same `DevBridge` interface
 
 ### Homelab + Network
 - [ ] Proxmox status / surfaces

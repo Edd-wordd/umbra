@@ -18,6 +18,8 @@ export interface ToolContext {
   source: "touch" | "palette" | "voice";
   /** True once the user approved a confirm/physical tool. */
   approved: boolean;
+  /** Optional typed-as-string arguments (e.g. { port: "3000" }); voice fills these in Phase 3. */
+  args?: Readonly<Record<string, string>>;
   wakeRail: (id: RailId) => void;
   setMode: (mode: Mode) => void;
   toIdle: () => void;

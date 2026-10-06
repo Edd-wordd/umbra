@@ -1,7 +1,8 @@
 "use client";
 
 import { polar, RADII, sampleLayout, type CoreLayout, type DomainId } from "@/lib/graph";
-import { color } from "@/lib/theme/tokens";
+import type { Attention } from "@/lib/store";
+import { activity, color } from "@/lib/theme/tokens";
 import { statusHex } from "./geometry";
 
 /**
@@ -12,9 +13,15 @@ import { statusHex } from "./geometry";
 export default function CoreLabels({
   layout = sampleLayout,
   litDomain,
+  attention = {},
+  hidden = false,
 }: {
   layout?: CoreLayout;
   litDomain: DomainId | null;
+  /** Sectors needing Edward: rim label turns amber/red with a short count line. */
+  attention?: Partial<Record<DomainId, Attention>>;
+  /** Hide all text (Dev focus parks a shrunken core beside the workspace). */
+  hidden?: boolean;
 }) {
   const lit = litDomain ? layout.sectors[layout.sectorIndex[litDomain]] : null;
 
@@ -58,7 +65,7 @@ export default function CoreLabels({
       viewBox="-960 -540 1920 1080"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden
-      style={{ fontFamily: "var(--font-mono)" }}
+      style={{ fontFamily: "var(--font-mono)", opacity: hidden ? 0 : 1, transition: "opacity 250ms" }}
     >
       {layout.sectors.map((s) => {
         const [x, y] = polar(RADII.label, s.angle);
@@ -66,20 +73,37 @@ export default function CoreLabels({
         const anchor = Math.abs(ca) < 0.2 ? "middle" : ca > 0 ? "start" : "end";
         const yy = y + 3.5 + (Math.sin(s.angle) > 0.9 ? 6 : 0);
         const isLit = lit?.domain === s.domain;
+        const attn = attention[s.domain];
+        const fill = attn ? (attn.level === "broken" ? activity.broken : activity.attention) : color.dim;
         return (
-          <text
-            key={s.domain}
-            x={x.toFixed(1)}
-            y={yy.toFixed(1)}
-            fontSize={9.5}
-            letterSpacing={2}
-            textAnchor={anchor}
-            fill={color.dim}
-            opacity={isLit ? 0 : 0.55}
-            style={{ transition: "opacity 300ms" }}
-          >
-            {s.label}
-          </text>
+          <g key={s.domain} data-sector-label={s.domain}>
+            <text
+              x={x.toFixed(1)}
+              y={yy.toFixed(1)}
+              fontSize={9.5}
+              letterSpacing={2}
+              textAnchor={anchor}
+              fill={fill}
+              opacity={isLit ? 0 : attn ? 0.85 : 0.55}
+              style={{ transition: "opacity 300ms, fill 300ms" }}
+            >
+              {s.label}
+            </text>
+            {attn && !isLit && (
+              <text
+                className="umbra-fade-in"
+                x={x.toFixed(1)}
+                y={(Math.sin(s.angle) < 0 ? yy - 14 : yy + 14).toFixed(1)}
+                fontSize={8.5}
+                letterSpacing={0.5}
+                textAnchor={anchor}
+                fill={fill}
+                opacity={0.6}
+              >
+                {attn.note}
+              </text>
+            )}
+          </g>
         );
       })}
       <g key={lit?.domain ?? "none"} className="umbra-fade-in">

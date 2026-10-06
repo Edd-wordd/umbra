@@ -1,3 +1,4 @@
+import { DEV_TOOLS } from "./dev";
 import type { Tool, ToolContext, ToolResult } from "./types";
 
 /**
@@ -72,6 +73,7 @@ export const TOOLS: readonly Tool[] = [
     keywords: ["github", "actions", "tests"],
     run: stub("ci rerun requested (stub)"),
   },
+  ...DEV_TOOLS,
   {
     id: "lab.adguard.pause",
     domain: "lab",

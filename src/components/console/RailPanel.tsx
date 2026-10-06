@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { RAIL_SAMPLE, getRail, type Tone } from "@/lib/rails";
 import { railOf, useUmbra } from "@/lib/store";
 import { formatClock } from "@/lib/time";
+import DevFocus from "./devfocus/DevFocus";
 
 const TONE: Record<Tone, string> = {
   ink: "text-ink",
@@ -20,6 +21,8 @@ const pct = (y: number) => `${((y / 1080) * 100).toFixed(3)}%`;
 /**
  * The single awake rail, docked to its edge tick (not a floating window).
  * Esc, click outside, or 20s without input returns to idle.
+ * The Dev rail opens the expanded Dev focus instead, which stays awake while
+ * open (Esc or the DEV tick closes it).
  */
 export default function RailPanel() {
   const mode = useUmbra((s) => s.mode);
@@ -28,10 +31,11 @@ export default function RailPanel() {
   const openPalette = useUmbra((s) => s.openPalette);
   const paletteOpen = useUmbra((s) => s.paletteOpen);
   const id = railOf(mode);
+  const sticky = id === "dev";
 
   // Click / tap outside the rail (and its tick) returns to idle.
   useEffect(() => {
-    if (!id) return;
+    if (!id || sticky) return;
     const onDown = (e: PointerEvent) => {
       if (useUmbra.getState().paletteOpen) return;
       const el = e.target as Element | null;
@@ -39,11 +43,11 @@ export default function RailPanel() {
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [id, toIdle]);
+  }, [id, sticky, toIdle]);
 
   // Collapse after 20s with no input.
   useEffect(() => {
-    if (!id || paletteOpen) return;
+    if (!id || sticky || paletteOpen) return;
     let timer = setTimeout(toIdle, IDLE_COLLAPSE_MS);
     const reset = () => {
       clearTimeout(timer);
@@ -55,9 +59,10 @@ export default function RailPanel() {
       clearTimeout(timer);
       evts.forEach((ev) => window.removeEventListener(ev, reset));
     };
-  }, [id, paletteOpen, toIdle]);
+  }, [id, sticky, paletteOpen, toIdle]);
 
   if (!id) return null;
+  if (id === "dev") return <DevFocus />;
   const rail = getRail(id);
   const content = RAIL_SAMPLE[id];
   const left = rail.side === "left";

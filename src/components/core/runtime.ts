@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { RADII, type CoreLayout } from "@/lib/graph";
+import { activity } from "@/lib/theme/tokens";
 import { BASE_RGB, BG_RGB, CORE_SECTOR, CYAN_RGB, GREY_HALO_RGB, buildCoreGeometry } from "./geometry";
 import { haloFragment, haloVertex, lineFragment, lineVertex, pointFragment, pointVertex } from "./shaders";
 
@@ -17,12 +18,20 @@ export interface CoreInputs {
   /** Voice level 0..1 (already resolved by the caller). */
   level: number;
   reducedMotion: boolean;
+  /** Per-sector attention (index = sector index): amber = waiting on Edward, red = broken. */
+  attention: readonly SectorAttention[];
+  /** Where the core sits (world units, y up) and its scale; home is {0, 0, 1}. */
+  view: { x: number; y: number; scale: number };
 }
+
+export type SectorAttention = "attention" | "broken" | null;
 
 const BREATH_PERIOD = 9; // seconds, from the wireframes
 const RIPPLE_POOL = 4;
 const RIPPLE_LIFE = 1.4;
 const R0 = RADII.core * 2;
+const ATTN_PERIOD = 2.4; // seconds; slow enough to read as "waiting", not an alarm
+const ATTN_COLOR = { attention: new THREE.Color(activity.attention), broken: new THREE.Color(activity.broken) };
 
 const v3 = (c: readonly number[]) => new THREE.Vector3(c[0], c[1], c[2]);
 const damp = (x: number, t: number, k: number, dt: number) => x + (t - x) * (1 - Math.exp(-k * dt));
@@ -40,8 +49,10 @@ export class CoreRuntime {
   private readonly pulseMat: THREE.LineBasicMaterial;
   private readonly pulse: THREE.LineLoop;
   private readonly ripples: { obj: THREE.LineLoop; mat: THREE.LineBasicMaterial; start: number }[] = [];
+  /** One attention bracket per sector: arc just outside the dial + faint inner-ring segment. */
+  private readonly attn: { obj: THREE.LineSegments; mat: THREE.LineBasicMaterial; level: number }[] = [];
 
-  private s = { lit: new Array(8).fill(0) as number[], mix: 0, radius: 78, opacity: 0.32, voice: 0, prevLevel: 0, lastRipple: -10, next: 0 };
+  private s = { vx: 0, vy: 0, vs: 1, lit: new Array(8).fill(0) as number[], mix: 0, radius: 78, opacity: 0.32, voice: 0, prevLevel: 0, lastRipple: -10, next: 0 };
 
   constructor(layout: CoreLayout) {
     const geo = buildCoreGeometry(layout);
@@ -101,6 +112,29 @@ export class CoreRuntime {
     add(new THREE.LineSegments(geo.lines, this.line), 3);
     add(new THREE.Points(geo.points, this.point), 4);
 
+    for (const sec of layout.sectors) {
+      const pts: number[] = [];
+      const arc = (r: number, a1: number, a2: number) => {
+        const steps = Math.ceil(((a2 - a1) * r) / 4);
+        for (let i = 0; i < steps; i++) {
+          const t1 = a1 + ((a2 - a1) * i) / steps;
+          const t2 = a1 + ((a2 - a1) * (i + 1)) / steps;
+          pts.push(r * Math.cos(t1), -r * Math.sin(t1), 0, r * Math.cos(t2), -r * Math.sin(t2), 0);
+        }
+      };
+      const ro = RADII.dial + 12;
+      const a1 = sec.start + 0.03;
+      const a2 = sec.end - 0.03;
+      arc(ro, a1, a2);
+      arc(ro + 2.5, a1 + 0.06, a2 - 0.06);
+      for (const a of [a1, a2]) pts.push(ro * Math.cos(a), -ro * Math.sin(a), 0, (ro - 6) * Math.cos(a), -(ro - 6) * Math.sin(a), 0);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+      const mat = new THREE.LineBasicMaterial({ ...common, color: ATTN_COLOR.attention.clone(), opacity: 0 });
+      this.attn.push({ obj: add(new THREE.LineSegments(g, mat), 5, false), mat, level: 0 });
+      this.disposables.push(g, mat);
+    }
+
     this.disposables.push(geo.lines, geo.wedges, geo.points, circle, plane, this.line, this.point, this.halo, this.pulseMat);
   }
 
@@ -137,7 +171,6 @@ export class CoreRuntime {
     hu.uLevel.value = inp.level;
     hu.uVoice.value = S.voice;
 
-    this.point.uniforms.uPx.value = px;
 
     // Pulse ring follows the level.
     const r = R0 * (1 + 0.7 * inp.level);
@@ -166,6 +199,24 @@ export class CoreRuntime {
       rp.mat.opacity = 0.45 * (1 - e);
       rp.obj.visible = true;
     }
+
+    // Attention brackets: fade in/out, slow breathing pulse while present.
+    const pulse = inp.reducedMotion ? 0.75 : 0.55 + 0.45 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / ATTN_PERIOD));
+    this.attn.forEach((a, i) => {
+      const want = inp.attention[i] ?? null;
+      if (want) a.mat.color.copy(ATTN_COLOR[want]);
+      a.level = step(a.level, want ? 1 : 0, 5);
+      a.mat.opacity = a.level * 0.8 * pulse;
+      a.obj.visible = a.mat.opacity > 0.003;
+    });
+
+    // View: slide/scale the whole core (Dev focus parks it beside the workspace).
+    S.vx = step(S.vx, inp.view.x, 5);
+    S.vy = step(S.vy, inp.view.y, 5);
+    S.vs = step(S.vs, inp.view.scale, 5);
+    this.root.position.set(S.vx, S.vy, 0);
+    this.root.scale.set(S.vs, S.vs, 1);
+    this.point.uniforms.uPx.value = px * S.vs;
 
     this.busy = moving || rippling;
   }

@@ -7,6 +7,13 @@ import type { DomainId } from "./graph";
 /** Console mode. Exactly one thing is awake at a time. */
 export type Mode = "idle" | `rail:${RailId}` | "voice" | "astro";
 export type VoiceState = "idle" | "listening" | "thinking" | "speaking";
+
+/** A domain that needs Edward: amber (waiting on him) or red (something broke). */
+export interface Attention {
+  level: "attention" | "broken";
+  /** Short count line, e.g. "1 failed · 1 waiting". */
+  note: string;
+}
 export const VOICE_STATES: readonly VoiceState[] = ["idle", "listening", "thinking", "speaking"];
 
 export const isRailMode = (m: Mode): m is `rail:${RailId}` => m.startsWith("rail:");
@@ -29,6 +36,8 @@ interface UmbraState {
   paletteQuery: string;
   /** Last tool result line (shown briefly in the focus strip). */
   lastResult: { message: string; ok: boolean; at: number } | null;
+  /** Per-domain attention, fed by the rails' live data; drives core sector + rail tick color. */
+  attention: Partial<Record<DomainId, Attention>>;
 
   setMode: (mode: Mode) => void;
   wakeRail: (id: RailId) => void;
@@ -41,6 +50,7 @@ interface UmbraState {
   closePalette: () => void;
   setPaletteQuery: (q: string) => void;
   setLastResult: (r: { message: string; ok: boolean }) => void;
+  setAttention: (domain: DomainId, a: Attention | null) => void;
 }
 
 export const useUmbra = create<UmbraState>()((set, get) => ({
@@ -51,6 +61,7 @@ export const useUmbra = create<UmbraState>()((set, get) => ({
   paletteOpen: false,
   paletteQuery: "",
   lastResult: null,
+  attention: {},
 
   setMode: (mode) => set({ mode, since: Date.now() }),
   wakeRail: (id) => set({ mode: `rail:${id}`, since: Date.now() }),
@@ -70,4 +81,12 @@ export const useUmbra = create<UmbraState>()((set, get) => ({
   closePalette: () => set({ paletteOpen: false, paletteQuery: "" }),
   setPaletteQuery: (paletteQuery) => set({ paletteQuery }),
   setLastResult: (r) => set({ lastResult: { ...r, at: Date.now() } }),
+  setAttention: (domain, a) => {
+    const cur = get().attention[domain];
+    if (cur?.level === a?.level && cur?.note === a?.note) return;
+    const next = { ...get().attention };
+    if (a) next[domain] = a;
+    else delete next[domain];
+    set({ attention: next });
+  },
 }));

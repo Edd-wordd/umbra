@@ -8,6 +8,14 @@ const clockFmt = new Intl.DateTimeFormat("en-US", {
   hourCycle: "h23",
 });
 
+const clockSecFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   timeZone: TIME_ZONE,
   weekday: "short",
@@ -19,6 +27,11 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
 /** "20:54" (24h, no seconds) */
 export function formatClock(d: Date): string {
   return clockFmt.format(d);
+}
+
+/** "20:54:07" (24h, with seconds; activity log) */
+export function formatClockSeconds(d: Date): string {
+  return clockSecFmt.format(d);
 }
 
 /** "MON 05 OCT 2026 · MT" */

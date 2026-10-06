@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { devAttention, useDevStore } from "@/lib/dev/store";
+import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
 import CoreStage from "../core/CoreStage";
@@ -47,6 +49,24 @@ function useConsoleKeys() {
   }, []);
 }
 
+/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus. */
+function useDeepLink() {
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const want = q.get("focus") ?? q.get("rail");
+    if (want && (DOMAINS as readonly string[]).includes(want)) useUmbra.getState().wakeRail(want as DomainId);
+  }, []);
+}
+
+/** Mirrors the Dev workspace's worst state into the console's attention map (core sector + rail tick). */
+function useDevAttention() {
+  useEffect(() => {
+    const sync = () => useUmbra.getState().setAttention("dev", devAttention(useDevStore.getState()));
+    sync();
+    return useDevStore.subscribe(sync);
+  }, []);
+}
+
 /** Drives the voice level bus with a fake speaking envelope while simulating. */
 function useVoiceSimulation() {
   const sim = useUmbra((s) => s.voiceSim);
@@ -60,6 +80,8 @@ function useVoiceSimulation() {
 export default function Console() {
   useConsoleKeys();
   useVoiceSimulation();
+  useDeepLink();
+  useDevAttention();
   const mode = useUmbra((s) => s.mode);
 
   return (
