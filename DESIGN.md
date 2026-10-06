@@ -20,9 +20,9 @@
 
 ## Centerpiece
 
-- Center of the experience: a living **Obsidian-style force mesh** (the “brain”).
+- Center of the experience: a precision **system core** (the “brain”): concentric rings and a ticked dial split into domain sectors, one hub per domain with sparse leaf nodes on clean pathways, and a soft glow that pulses with the voice.
 - In **Astro** mode the mesh **morphs into an orrery** (orbital wireframe), then back.
-- Motion should feel physical and calm — force simulation, not particle fireworks.
+- Motion should feel physical and calm: slow breathing at idle, glow and ring scale driven by voice audio level when speaking. No particle fireworks.
 
 ## Layout
 
@@ -46,7 +46,7 @@
 
 ## Stack cues (visual)
 
-- **R3F** + **react-force-graph** for mesh / orrery
+- **R3F** (single WebGL canvas, instanced geometry, one bloom or shader glow) for the core and orrery
 - Tailwind tokens should encode the near-black + activity-only glow palette
 - UI copy stays short, ops-toned, monospace-friendly
 

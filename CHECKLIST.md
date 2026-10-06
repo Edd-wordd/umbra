@@ -25,7 +25,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Default state: **silent / near-black** until touch or voice wakes activity
 - [x] Surface: near-black grid, thin lines, monospace type
 - [x] Glow palette (activity only): **cyan / amber / red** — no constant neon wash
-- [x] Centerpiece: living **Obsidian-style mesh brain** that morphs to an **orrery** in Astro mode
+- [x] Centerpiece: precision **system core** (domain sectors, glow, voice-reactive pulse) that morphs to an **orrery** in Astro mode
 - [x] Tron accents used **sparingly** (grid / edge highlights only)
 - [x] Explicit rejects:
   - [x] Floating panels / window-clutter HUD
@@ -39,7 +39,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 ## 3. Sections to build (status)
 
 ### Core brain (mesh graph)
-- [ ] Force-directed mesh graph as primary centerpiece
+- [ ] System core with domain sectors, hubs, and pathways as primary centerpiece
 - [ ] Node types / domains mapped (dev, lab, astro, business, life, knowledge…)
 - [ ] Morph path: mesh brain ↔ Astro orrery
 - [ ] Idle vs active glow states
@@ -121,7 +121,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 ## 4. Tech stack
 
 - [x] Frontend: **Next.js + TypeScript + Tailwind**
-- [x] 3D / graph: **R3F** + **react-force-graph**
+- [x] 3D / graph: **R3F** single canvas (instanced geometry + glow pass)
 - [x] Backend / data: **Supabase**
 - [x] Automation: **n8n** on Proxmox Docker
 - [x] Local bridge (homelab / device I/O)
@@ -184,7 +184,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [ ] **Phase 0 — Foundations**  
   Repo, Next.js shell, DESIGN constraints, near-black silent canvas, mono type, grid
 - [ ] **Phase 1 — Core brain**  
-  R3F + react-force-graph mesh; idle/active glow; domain nodes
+  R3F system core; idle breathing, voice-reactive glow; domain sectors from the graph model
 - [ ] **Phase 2 — Local bridge + Homelab**  
   Tailscale, tool layer, activity log, health checks, Mac helper; bridge to Proxmox / Docker / AdGuard; Dev rail (GitHub, Sentry, PostHog, Figma)
 - [ ] **Phase 3 — Voice layer + Cmd-K**  
