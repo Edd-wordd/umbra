@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { createDevSnapshot, createMockDevBridge, MOCK_REPOS } from "../mock/dev";
+import { createDevSnapshot, createMockDevBridge, MOCK_REPOS, type MockVariant } from "../mock/dev";
 import type { Attention } from "../store";
 import { shortCwd } from "./format";
 import { PROJECTS, type DevProject } from "./projects";
@@ -41,9 +41,15 @@ export interface PendingApproval {
 }
 
 interface DevState extends DevSnapshot {
+  /** Which sample world is loaded (`?mock=quiet` = a good day). */
+  mock: MockVariant;
+  /** Terminal session shown on the right; "" = none (the terminal only appears on demand). */
   selectedId: string;
   pending: PendingApproval | null;
+  /** "Where you left off" card: shown on the first open, folds after the first interaction or 30 s. */
   handoffOpen: boolean;
+  /** Bumped to focus the one-line "send to agent" input (⌘K). */
+  dispatchFocusAt: number;
   /** Per-project config (which services each repo uses); "+ service" edits it locally. */
   projects: DevProject[];
   /** Project whose service details are open under the terminal. */
@@ -57,6 +63,10 @@ interface DevState extends DevSnapshot {
   followNewAgent: boolean;
 
   apply: (ev: DevEvent) => void;
+  loadMock: (variant: MockVariant) => void;
+  closeTerminal: () => void;
+  setHandoff: (open: boolean) => void;
+  focusDispatch: () => void;
   log: (source: ActivitySource, text: string, result?: ActivityResult) => void;
   select: (sessionId: string) => void;
   runCommand: (command: string, source?: ActivitySource) => void;
@@ -84,7 +94,16 @@ const nid = (p: string) => `${p}${(++n).toString(36)}`;
 const MAX_LOG = 60;
 
 const initial = createDevSnapshot(Date.now());
-const bridge: DevBridge = createMockDevBridge(initial);
+let bridge: DevBridge = createMockDevBridge(initial);
+let unsubscribe = () => {};
+
+const seedActivity = (variant: MockVariant): ActivityEntry[] =>
+  variant === "quiet"
+    ? [{ id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 1 agent · 1 port · quiet day", result: "info" }]
+    : [
+        { id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 4 agents · 3 ports", result: "info" },
+        { id: nid("x"), at: Date.now() - 135_000, source: "agent", text: "umbra/cursor waiting · workspace trust", result: "pending" },
+      ];
 
 const sessionLabel = (s: DevState, sessionId: string) => s.sessions[sessionId]?.title ?? sessionId;
 
@@ -98,16 +117,15 @@ export const useDevStore = create<DevState>()((set, get) => {
 
   return {
     ...initial,
-    selectedId: "t-umbra-agent",
+    mock: "default",
+    selectedId: "",
     pending: null,
     handoffOpen: true,
+    dispatchFocusAt: 0,
     projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
     expandedProject: null,
     pickerFor: null,
-    activity: [
-      { id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 4 agents · 3 ports", result: "info" },
-      { id: nid("x"), at: Date.now() - 135_000, source: "agent", text: "umbra/cursor waiting · workspace trust", result: "pending" },
-    ],
+    activity: seedActivity("default"),
     dispatchRepo: "deadbridge-site",
     dispatchAgent: "codex",
     followNewAgent: false,
@@ -153,6 +171,29 @@ export const useDevStore = create<DevState>()((set, get) => {
             };
         }
       }),
+
+    loadMock: (variant) => {
+      if (variant === get().mock) return;
+      unsubscribe();
+      const snap = createDevSnapshot(Date.now(), variant);
+      bridge = createMockDevBridge(snap);
+      unsubscribe = bridge.subscribe((ev) => get().apply(ev));
+      set({
+        ...snap,
+        mock: variant,
+        selectedId: "",
+        pending: null,
+        handoffOpen: true,
+        expandedProject: null,
+        pickerFor: null,
+        projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
+        activity: seedActivity(variant),
+      });
+    },
+
+    closeTerminal: () => set({ selectedId: "" }),
+    setHandoff: (handoffOpen) => set({ handoffOpen }),
+    focusDispatch: () => set({ dispatchFocusAt: Date.now() }),
 
     log: (source, text, result = "ok") =>
       set((s) => ({ activity: [...s.activity, { id: nid("x"), at: Date.now(), source, text, result }].slice(-MAX_LOG) })),
@@ -301,7 +342,7 @@ export const useDevStore = create<DevState>()((set, get) => {
   };
 });
 
-bridge.subscribe((ev) => useDevStore.getState().apply(ev));
+unsubscribe = bridge.subscribe((ev) => useDevStore.getState().apply(ev));
 
 /* ------------------------------------------------------------------------- */
 /* Selectors                                                                  */

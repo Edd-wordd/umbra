@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDevStore } from "@/lib/dev/store";
-import type { ActivityResult } from "@/lib/dev/types";
+import type { ActivityEntry, ActivityResult } from "@/lib/dev/types";
 import { formatClockSeconds } from "@/lib/time";
 
 const RESULT: Record<ActivityResult, { label: string; cls: string }> = {
@@ -13,35 +13,57 @@ const RESULT: Record<ActivityResult, { label: string; cls: string }> = {
   error: { label: "error", cls: "text-broken" },
 };
 
-/** Every Dev action, timestamped. Doubles as the brain's memory later (Supabase). */
+function Entry({ e }: { e: ActivityEntry }) {
+  const r = RESULT[e.result];
+  return (
+    <>
+      <span className="w-[56px] shrink-0 tabular-nums text-dim">{formatClockSeconds(new Date(e.at))}</span>
+      <span className="w-[48px] shrink-0 text-dim">{e.source}</span>
+      <span className="min-w-0 flex-1 truncate text-mid">{e.text}</span>
+      <span className={`w-[64px] shrink-0 text-right ${r.cls}`}>{r.label}</span>
+    </>
+  );
+}
+
+/** Every Dev action, timestamped: one latest-line strip that opens into a drawer. */
 export default function ActivityLog() {
   const activity = useDevStore((s) => s.activity);
+  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLOListElement>(null);
-  const last = activity.at(-1)?.id;
+  const last = activity.at(-1);
   useEffect(() => {
     const el = ref.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [last]);
+  }, [last?.id, open]);
 
   return (
-    <section aria-label="activity log" className="flex gap-[18px] border-t border-line px-5 pb-[10px] pt-[10px]">
-      <div className="w-[96px] shrink-0 text-[9.5px] leading-[16px]">
-        <div className="tracking-[2px] text-mid">ACTIVITY</div>
-        <div className="text-dim">{activity.length} today</div>
-      </div>
-      <ol ref={ref} className="h-[64px] min-w-0 flex-1 overflow-y-auto [@media(max-height:940px)]:h-[32px] text-[10px] leading-[16px]" data-activity>
-        {activity.map((e) => {
-          const r = RESULT[e.result];
-          return (
+    <section aria-label="activity log" className="relative shrink-0 border-t border-line">
+      {open && (
+        <ol
+          ref={ref}
+          data-activity
+          className="umbra-fade-in absolute inset-x-0 bottom-full max-h-[220px] overflow-y-auto border-t border-line bg-panel px-5 py-[8px] text-[10px] leading-[18px]"
+        >
+          {activity.map((e) => (
             <li key={e.id} className="flex gap-[14px]">
-              <span className="w-[56px] shrink-0 tabular-nums text-dim">{formatClockSeconds(new Date(e.at))}</span>
-              <span className="w-[48px] shrink-0 text-dim">{e.source}</span>
-              <span className="min-w-0 flex-1 truncate text-mid">{e.text}</span>
-              <span className={`w-[64px] shrink-0 text-right ${r.cls}`}>{r.label}</span>
+              <Entry e={e} />
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ol>
+      )}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex h-[30px] w-full items-center gap-[14px] px-5 text-left text-[10px] hover:bg-panel-raised/40"
+        data-activity-strip
+      >
+        <span className="w-[72px] shrink-0 text-[9.5px] tracking-[2px] text-dim">ACTIVITY</span>
+        {last ? <Entry e={last} /> : <span className="text-ghost">nothing yet</span>}
+        <span className="w-[36px] shrink-0 text-right text-[9.5px] text-ghost">
+          {activity.length} {open ? "▾" : "▴"}
+        </span>
+      </button>
     </section>
   );
 }

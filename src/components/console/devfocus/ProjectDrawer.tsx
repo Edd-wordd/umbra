@@ -2,6 +2,7 @@
 
 import { useDevStore } from "@/lib/dev/store";
 import type { DevProject } from "@/lib/dev/projects";
+import { AGENT_TONE, SERVER_TONE } from "@/lib/dev/format";
 import { STATUS_TONE } from "@/lib/dev/services";
 import { runServiceAction } from "./approval";
 import { Btn, Dot, SectionHead, Spark, TEXT_TONE } from "./ui";
@@ -57,6 +58,68 @@ function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
   );
 }
 
+/** The project's agents and dev servers: click one to open its terminal above. */
+function Sessions({ repo }: { repo: string }) {
+  const agents = useDevStore((s) => s.agents);
+  const servers = useDevStore((s) => s.servers);
+  const selectedId = useDevStore((s) => s.selectedId);
+  const select = useDevStore((s) => s.select);
+  const reviewDiff = useDevStore((s) => s.reviewDiff);
+  const start = useDevStore((s) => s.startServer);
+  const mine = agents.filter((a) => a.repo === repo);
+  const srv = servers.filter((s) => s.repo === repo);
+  if (!mine.length && !srv.length) return null;
+  const tag = (id: string, sel: boolean, onClick: () => void, children: React.ReactNode) => (
+    <button
+      key={id}
+      type="button"
+      onClick={onClick}
+      className={`flex h-[20px] items-center gap-[6px] border px-[7px] text-[9.5px] transition-colors ${
+        sel ? "border-line-strong bg-panel-raised text-ink" : "border-line text-mid hover:border-line-strong hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
+  );
+  return (
+    <div className="mt-[8px] flex flex-wrap items-center gap-[6px]" data-sessions={repo}>
+      <span className="mr-[4px] text-[9.5px] text-dim">sessions</span>
+      {mine.map((a) =>
+        tag(a.id, a.sessionId === selectedId, () => select(a.sessionId), (
+          <>
+            <Dot tone={AGENT_TONE[a.state]} pulse={a.state === "running"} />
+            {a.agent} {a.state}
+            {a.state === "done" && a.diff && <span className="text-dim">+{a.diff.additions} −{a.diff.deletions}</span>}
+          </>
+        )),
+      )}
+      {mine
+        .filter((a) => a.state === "done" && a.diff)
+        .map((a) => (
+          <Btn key={`${a.id}-diff`} onClick={() => reviewDiff(a.id)} title="git diff --stat in its terminal">
+            DIFF
+          </Btn>
+        ))}
+      {srv.map((s) =>
+        s.sessionId
+          ? tag(s.id, s.sessionId === selectedId, () => select(s.sessionId!), (
+              <>
+                <Dot tone={SERVER_TONE[s.state]} />:{s.port} {s.state === "stopped" ? <span className="text-dim">stopped</span> : s.command}
+              </>
+            ))
+          : null,
+      )}
+      {srv
+        .filter((s) => s.state === "stopped")
+        .map((s) => (
+          <Btn key={`${s.id}-start`} onClick={() => start(s.id)} title={`start ${s.command} on :${s.port}`}>
+            START
+          </Btn>
+        ))}
+    </div>
+  );
+}
+
 function Drawer({ project }: { project: DevProject }) {
   const items = useServiceViews(project);
   const toggle = useDevStore((s) => s.toggleProject);
@@ -71,7 +134,8 @@ function Drawer({ project }: { project: DevProject }) {
           CLOSE
         </Btn>
       </SectionHead>
-      <div className="mt-[6px] grid min-h-0 grid-cols-2 content-start gap-x-[22px] gap-y-[10px] overflow-y-auto pr-[2px]">
+      <Sessions repo={project.repo} />
+      <div className="mt-[10px] grid min-h-0 grid-cols-2 content-start gap-x-[22px] gap-y-[10px] overflow-y-auto pr-[2px]">
         {items.length === 0 && <div className="col-span-2 text-[10px] text-dim">no services attached · + service to add one</div>}
         {items.map((it) => (
           <ServiceCard key={it.adapter.id} item={it} repo={project.repo} />

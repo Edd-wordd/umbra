@@ -16,24 +16,28 @@ const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
 type PerRepo<P> = Partial<Record<RepoId, P>>;
 
-export function createServicePayloads(now: number): ServicePayloads {
+export type MockVariant = "default" | "quiet";
+
+/** `quiet` = a good day: everything pushed, CI green, no Sentry issues, no blips. */
+export function createServicePayloads(now: number, variant: MockVariant = "default"): ServicePayloads {
+  const quiet = variant === "quiet";
   const github: PerRepo<GithubPayload> = {
     umbra: {
-      remote: null,
+      remote: quiet ? "eddwordd/umbra" : null,
       branch: "main",
       uncommitted: 0,
-      ahead: 6,
+      ahead: quiet ? 0 : 6,
       staleBranches: [],
       lastCommit: { sha: "e00719a", message: "Add Dev focus mockup", at: now - 32 * MIN },
       openPrs: 0,
       workflows: false,
-      localChecks: { text: "lint ✓ build ✓", at: now - 30 * MIN },
+      localChecks: quiet ? undefined : { text: "lint ✓ build ✓", at: now - 30 * MIN },
     },
     parallax: {
       remote: "eddwordd/parallax",
-      branch: "fix/target-sort",
-      uncommitted: 1,
-      ahead: 2,
+      branch: quiet ? "main" : "fix/target-sort",
+      uncommitted: quiet ? 0 : 1,
+      ahead: quiet ? 0 : 2,
       staleBranches: [
         { name: "feat/moon-phase", days: 31 },
         { name: "spike/indi-ws", days: 19 },
@@ -68,7 +72,9 @@ export function createServicePayloads(now: number): ServicePayloads {
     parallax: {
       org: "eddwordd",
       project: "parallax",
-      issues: [
+      issues: quiet
+        ? []
+        : [
         {
           id: "SAMPLE-7Q",
           title: "TypeError: Cannot read properties of undefined (reading 'transit')",
@@ -89,9 +95,9 @@ export function createServicePayloads(now: number): ServicePayloads {
   const posthog: PerRepo<PosthogPayload> = {
     "deadbridge-site": {
       project: "deadbridge.app",
-      pageviews24h: 1912,
-      deltaVs7d: 38,
-      trend: [1302, 1388, 1251, 1420, 1366, 1395, 1912],
+      pageviews24h: quiet ? 1412 : 1912,
+      deltaVs7d: quiet ? 4 : 38,
+      trend: quiet ? [1302, 1388, 1251, 1420, 1366, 1395, 1412] : [1302, 1388, 1251, 1420, 1366, 1395, 1912],
       form: { name: "start-a-project", submits24h: 6, errors24h: 0 },
       topPage: { path: "/pricing", share: 31 },
     },

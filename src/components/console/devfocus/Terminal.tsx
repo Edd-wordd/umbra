@@ -41,6 +41,7 @@ export default function Terminal() {
   const server = useDevStore((s) => s.servers.find((x) => x.sessionId === s.selectedId));
   const pending = useDevStore((s) => s.pending);
   const runCommand = useDevStore((s) => s.runCommand);
+  const close = useDevStore((s) => s.closeTerminal);
   const [cmd, setCmd] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [hIndex, setHIndex] = useState<number | null>(null);
@@ -104,7 +105,7 @@ export default function Terminal() {
   }
 
   return (
-    <section aria-label="terminal" className="flex min-h-[150px] flex-1 flex-col">
+    <section aria-label="terminal" className="umbra-fade-in flex min-h-[150px] flex-1 flex-col">
       <div className="flex h-[16px] items-center gap-[10px] text-[9.5px] leading-none">
         <span className="tracking-[2px] text-mid">TERMINAL</span>
         <span className="shrink-0 whitespace-nowrap text-ink">{session.title}</span>
@@ -115,6 +116,9 @@ export default function Terminal() {
           <Dot tone={tone} />
           {stateLabel.toUpperCase()}
         </span>
+        <button type="button" onClick={close} className="shrink-0 text-[10px] text-dim hover:text-ink" aria-label="close terminal" title="close terminal">
+          ✕
+        </button>
       </div>
       <div className="mt-[8px] flex min-h-0 flex-1 flex-col border border-line bg-black/35">
         <div

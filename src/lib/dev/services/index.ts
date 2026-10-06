@@ -4,7 +4,7 @@ import { github } from "./github";
 import { posthog } from "./posthog";
 import { sentry } from "./sentry";
 import { supabase } from "./supabase";
-import type { ServiceAdapter, ServiceContext, ServiceId, ServicePayloads, ServiceView } from "./types";
+import type { ServiceAdapter, ServiceContext, ServiceId, ServiceNeed, ServicePayloads, ServiceView } from "./types";
 
 export * from "./types";
 
@@ -16,6 +16,13 @@ export * from "./types";
 export const SERVICES: readonly ServiceAdapter[] = [github, sentry, posthog, supabase, docker, figma];
 
 export const getService = (id: ServiceId): ServiceAdapter | undefined => SERVICES.find((s) => s.id === id);
+
+/** What a rendered service asks of Edward (explicit `needs`, else derived from an attention/broken status). */
+export function needsOf(view: ServiceView): ServiceNeed[] {
+  if (view.needs) return view.needs;
+  if (view.fyi || (view.status !== "attention" && view.status !== "broken")) return [];
+  return [{ tone: view.status, text: view.summary }];
+}
 
 /** Render one service for one project. */
 export function readService(adapter: ServiceAdapter, payloads: ServicePayloads, ctx: ServiceContext): ServiceView {

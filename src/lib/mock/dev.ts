@@ -10,7 +10,9 @@
  */
 import { shortCwd } from "../dev/format";
 import { classifyCommand } from "../dev/risk";
-import { createServicePayloads } from "./services";
+import { createServicePayloads, type MockVariant } from "./services";
+
+export type { MockVariant };
 import type {
   AgentKind,
   AgentSession,
@@ -48,7 +50,37 @@ export const MOCK_AGENT_KINDS: readonly AgentKind[] = ["cursor", "codex", "pi"];
 
 export const STALE_PID = 28409;
 
-export function createDevSnapshot(now: number): DevSnapshot {
+export function createDevSnapshot(now: number, variant: MockVariant = "default"): DevSnapshot {
+  const snap = createLoudSnapshot(now);
+  return variant === "quiet" ? quietDown(snap, now) : snap;
+}
+
+/**
+ * A good day (`?mock=quiet`): one agent quietly working, the dev server up,
+ * CI green, nothing held, nothing stale, nothing unpushed.
+ */
+function quietDown(s: DevSnapshot, now: number): DevSnapshot {
+  const google = s.agents.find((a) => a.repo === "google")!;
+  return {
+    ...s,
+    agents: [google],
+    servers: s.servers.filter((x) => x.state !== "stale"),
+    ci: [
+      { id: "ci-deadbridge-97", repo: "deadbridge-site", branch: "main", number: 97, status: "passed", summary: "3/3 jobs", failing: [], at: now - 41 * MIN },
+      { id: "ci-parallax-319", repo: "parallax", branch: "main", number: 319, status: "passed", summary: "45 passed", failing: [], at: now - 3 * 60 * MIN },
+    ],
+    services: createServicePayloads(now, "quiet"),
+    handoff: {
+      at: now - 14 * 60 * MIN,
+      items: [
+        { repo: "google", branch: "master", summary: "pi porting gmail label sync, step 2/3", tone: "active" },
+        { repo: "deadbridge-site", branch: "main", summary: "lint fix merged, deployed", tone: "mid" },
+      ],
+    },
+  };
+}
+
+function createLoudSnapshot(now: number): DevSnapshot {
   const cwd = (r: RepoId) => `${PROJECTS}/${r}`;
 
   const agents: AgentSession[] = [
@@ -139,7 +171,7 @@ export function createDevSnapshot(now: number): DevSnapshot {
       ["out", `  ${cwd("umbra")}`],
       ["out", ""],
       ["dim", "  [a] Trust this workspace    [q] Quit"],
-      ["warn", "⌛ waiting for you · approve or deny in agent watch"],
+      ["warn", "⌛ waiting for you · approve or deny under needs you"],
     ], now - 2 * MIN),
   );
 

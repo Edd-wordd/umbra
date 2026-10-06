@@ -41,19 +41,21 @@ Clicking the DEV tick opens the Dev rail as a workspace instead of the narrow pa
 
 Everything is SAMPLE data from `src/lib/mock/dev.ts`; nothing runs a process, opens a socket or touches the filesystem.
 
-- **Agent watch**: coding agents per repo (running cyan, waiting amber, failed red, done gray). Click a row to attach its session to the terminal. The waiting agent has inline Approve / Deny; done has Review diff; failed links its Sentry issue.
-- **Terminal**: plain DOM transcript of the selected session plus a command line (`help` lists the sample commands, `↑`/`↓` history). Commands with `rm`, `push`, `--force`, `reset --hard`, `kill` or `sudo` are held behind an amber "needs your yes" strip (`y ⏎` approves, `n` / `Esc` denies).
-- **Dev servers / ports**: click a server to see its log; Kill on the stale `:3000` process goes through the same approval, then the `dev.port.free` tool; Start brings up deadbridge-site on `:3001`. Docker containers show under the server of the project that uses them (general Docker stays on the Homelab rail).
-- **Projects**: one row per repo (`src/lib/dev/projects.ts`) with a status chip for each service *that repo uses* (cyan active, amber attention, red broken, gray ok/idle). Click a row to open its service details under the terminal. GitHub is tuned for a solo dev: branch + uncommitted changes, unpushed commits (or "no remote"), stale branches > 14 d, last commit, latest Actions run, and a muted `open PRs` line. The red parallax CI run links to Sentry SAMPLE-7Q inside the github / sentry cards. `+ service` attaches an unused registered adapter (local state only, logged; it shows "not connected" until the bridge has credentials), `×` detaches it.
-- **Where you left off**: last session per repo; Resume sessions reattaches them and folds the card.
-- **Send to agent**: one line starts a new agent on its own branch (it lands on top of the watch list and finishes in a few seconds). Click the repo / agent names to change the target.
-- **Activity**: every action is logged with a timestamp, source and result.
+The default view is deliberately short: what needs you, one line per project, everything else one click away. `/?focus=dev&mock=quiet` loads a good-day sample (all quiet).
+
+- **Needs you** (top): only actionable lines, derived from live state (`src/lib/dev/needs.ts`), never hand-listed: an agent waiting on you (inline Approve / Deny), a failed agent (its CI run and Sentry issue fold into the same line; `≈ SAMPLE-7Q` opens the project), a stale port holder (Kill → amber approval → `dev.port.free`), a held terminal command, and any service need (an adapter's attention/broken status, e.g. umbra "6 commits not backed up · no remote"). Nothing pending shows one calm "all quiet" line.
+- **Projects**: one line per repo (`src/lib/dev/projects.ts`). Healthy = gray dot + name + tiny summary; only attention/broken services get an amber/red chip. Running agents are a small cyan marker (click → its session); running ports are cyan `:3002` (click → its log); `+` (on hover) attaches an unused adapter. Click a line to open the project on the right: its sessions (agents, dev servers, Diff / Start) and the service cards (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker containers, Figma). `×` on a card detaches it.
+- **Terminal** (on demand): hidden until you pick a need, an agent marker, a session or a server; `✕` hides it again. Plain DOM transcript plus a command line (`help` lists the sample commands, `↑`/`↓` history). Commands with `rm`, `push`, `--force`, `reset --hard`, `kill` or `sudo` are held behind an amber "needs your yes" strip (`y ⏎` approves, `n` / `Esc` denies).
+- **Servers**: one muted `servers · 1 running` line that expands to the port list (Kill / Start, project containers under their dev server). General Docker stays on the Homelab rail.
+- **Where you left off**: a 1–3 line card on the first open only; folds after the first click or 30 s. Reopen with `left off ↺` in the header or ⌘K "Where I left off".
+- **Send to agent**: one quiet input line at the bottom of the left column (or ⌘K "Send to agent…"); the new agent's session opens in the terminal. Click the repo / agent names to change the target.
+- **Activity**: a single latest-line strip at the bottom; click it for the full log.
 - **Brain tie-in**: a failed or waiting agent puts a red / amber bracket on the core's Dev sector and a dot on the DEV tick, even at idle.
-- **⌘K**: `dev.focus.open`, `dev.projects.open` (Open Dev projects), `dev.tests.run` (Run parallax tests), `dev.ci.rerun` (Rerun failing CI, needs confirm), `dev.port.free` (Free port 3000, needs confirm), `dev.sessions.resume`. Service card links go through `dev.link.open` (logs only; there is no browser in the mockup).
+- **⌘K**: `dev.focus.open`, `dev.projects.open` (Open Dev projects), `dev.handoff.open` (Where I left off), `dev.dispatch.focus` (Send to agent…), `dev.tests.run` (Run parallax tests), `dev.ci.rerun` (Rerun failing CI, needs confirm), `dev.port.free` (Free port 3000, needs confirm), `dev.sessions.resume`. Service card links go through `dev.link.open` (logs only; there is no browser in the mockup).
 
 #### Adding a service
 
-Services are adapters in `src/lib/dev/services/`, one file each (`github`, `sentry`, `posthog`, `supabase`, `docker`, `figma`). An adapter declares `id`, `label`, `chip`, `blurb` and a `read(payload, ctx)` that returns `{ status: ok | active | attention | broken | idle, summary, rows, actions? }`. `ctx` carries the project, CI runs, dev servers and agents for cross-links.
+Services are adapters in `src/lib/dev/services/`, one file each (`github`, `sentry`, `posthog`, `supabase`, `docker`, `figma`). An adapter declares `id`, `label`, `chip`, `blurb` and a `read(payload, ctx)` that returns `{ status: ok | active | attention | broken | idle, summary, rows, actions?, needs?, fyi? }`. An attention/broken status shows up under Needs you automatically (from `summary`); return explicit `needs` (with `refs` so it folds into a matching failed agent) or set `fyi: true` for chip-only attention such as a traffic spike. `ctx` carries the project, CI runs, dev servers and agents for cross-links.
 
 1. Add `src/lib/dev/services/<name>.ts` using `defineService<YourPayload>({ ... })`. Return `notConnected(label)` when the payload is missing.
 2. Register it in `SERVICES` in `src/lib/dev/services/index.ts`.
@@ -69,10 +71,11 @@ src/app/                 Next.js App Router (layout, page, design tokens in glob
 src/components/console/  Console shell: top chrome, rails, rail panel, bottom strips, ⌘K palette
 src/components/core/     System core: one R3F canvas (client-only), shaders, SVG label overlay
 src/lib/graph/           Typed graph model (nodes/edges), SAMPLE dataset, deterministic core layout
-src/components/console/devfocus/  Dev focus workspace (agents, terminal, ports, projects + service drawer, hand-off, dispatch, activity)
+src/components/console/devfocus/  Dev focus workspace (needs you, project lines + drawer, on-demand terminal, folded servers / hand-off / dispatch / activity)
 src/lib/tools/           One tool layer: typed Tool (id, domain, risk, run), stub tools, approval gate
 src/lib/dev/             Dev workspace models + bridge protocol (types.ts), risk classifier, store (reducer over bridge events)
 src/lib/dev/projects.ts  Repos and the services each one uses
+src/lib/dev/needs.ts     "Needs you" derivation (agents, ports, held commands, service needs)
 src/lib/dev/services/    Service adapter registry (one file per service + index.ts)
 src/lib/mock/dev.ts      SAMPLE dev data + in-memory bridge with the same interface the Mac helper will implement
 src/lib/mock/services.ts SAMPLE per-repo service payloads

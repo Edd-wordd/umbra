@@ -49,10 +49,12 @@ function useConsoleKeys() {
   }, []);
 }
 
-/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus. */
+/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus; `&mock=quiet` = good-day sample. */
 function useDeepLink() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    // `?mock=quiet` loads the good-day sample (nothing needs you).
+    if (q.get("mock") === "quiet") useDevStore.getState().loadMock("quiet");
     const want = q.get("focus") ?? q.get("rail");
     if (want && (DOMAINS as readonly string[]).includes(want)) useUmbra.getState().wakeRail(want as DomainId);
   }, []);

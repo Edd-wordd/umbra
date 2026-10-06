@@ -21,8 +21,14 @@ export const posthog = defineService<PosthogPayload>({
     const blip = Math.abs(p.deltaVs7d) >= 25;
     const delta = `${p.deltaVs7d >= 0 ? "▲ +" : "▼ "}${p.deltaVs7d}% vs 7d`;
     return {
-      status: blip ? "attention" : "ok",
-      summary: blip ? `views ${delta.replace(" vs 7d", "")}` : `${p.pageviews24h.toLocaleString("en-US")} views · 24h`,
+      status: p.form.errors24h ? "broken" : blip ? "attention" : "ok",
+      // A traffic spike is worth an amber chip, not a to-do; form errors are.
+      fyi: !p.form.errors24h,
+      summary: p.form.errors24h
+        ? `${p.form.errors24h} form errors · 24h`
+        : blip
+          ? `views ${delta.replace(" vs 7d", "")}`
+          : `${p.pageviews24h.toLocaleString("en-US")} views · 24h`,
       spark: p.trend,
       rows: [
         { k: "pageviews", v: `${p.pageviews24h.toLocaleString("en-US")} · ${delta}`, tone: blip ? "attention" : undefined },

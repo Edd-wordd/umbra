@@ -39,8 +39,27 @@ export interface ServiceAction {
   args?: Record<string, string>;
 }
 
+/**
+ * Something in a service Edward should act on; surfaces under "Needs you".
+ * `refs` (CI run id, Sentry issue id, …) let items about the same failure
+ * fold into one line (e.g. a failed agent + its CI run + its Sentry issue).
+ */
+export interface ServiceNeed {
+  tone: "attention" | "broken";
+  text: string;
+  refs?: string[];
+  action?: ServiceAction;
+}
+
 export interface ServiceView {
   status: ServiceStatus;
+  /**
+   * Actionable items. When omitted, an attention/broken status becomes one
+   * need from `summary` (unless `fyi`).
+   */
+  needs?: ServiceNeed[];
+  /** Attention worth a chip but nothing to do (e.g. a traffic spike): stays out of "Needs you". */
+  fyi?: boolean;
   /** One line: chip tooltip + card header. */
   summary: string;
   rows: ServiceRow[];

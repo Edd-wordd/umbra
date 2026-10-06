@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useDevStore } from "@/lib/dev/store";
 import type { DevProject } from "@/lib/dev/projects";
-import { SERVICES, STATUS_TONE, worstStatus } from "@/lib/dev/services";
+import { SERVICES, STATUS_TONE, worstStatus, type ServiceStatus } from "@/lib/dev/services";
+import type { AgentSession } from "@/lib/dev/types";
 import { Btn, Chip, Dot, SectionHead } from "./ui";
-import { useServiceViews } from "./useServiceViews";
+import type { ServiceItem } from "./useServiceViews";
 
 function Picker({ project }: { project: DevProject }) {
   const add = useDevStore((s) => s.addService);
@@ -45,39 +46,87 @@ function Picker({ project }: { project: DevProject }) {
   );
 }
 
-function ProjectRow({ project }: { project: DevProject }) {
+const AGENT_STATUS: Record<AgentSession["state"], ServiceStatus> = { running: "ok", waiting: "attention", failed: "broken", done: "ok", stopped: "ok" };
+
+function ProjectRow({ project, items }: { project: DevProject; items: ServiceItem[] }) {
   const expanded = useDevStore((s) => s.expandedProject === project.repo);
   const picking = useDevStore((s) => s.pickerFor === project.repo);
+  const agents = useDevStore((s) => s.agents);
   const servers = useDevStore((s) => s.servers);
   const toggle = useDevStore((s) => s.toggleProject);
   const openPicker = useDevStore((s) => s.openPicker);
-  const items = useServiceViews(project);
-  const worst = worstStatus(items.map((i) => i.view.status));
+  const select = useDevStore((s) => s.select);
+
+  const mine = agents.filter((a) => a.repo === project.repo);
+  const running = mine.filter((a) => a.state === "running");
+  const review = mine.find((a) => a.state === "done" && a.diff);
+  const flagged = items.filter((i) => i.view.status === "attention" || i.view.status === "broken");
+  const activeSvc = items.find((i) => i.view.status === "active");
+  const gh = items.find((i) => i.adapter.id === "github");
+  // Gray unless something needs him; running work is a cyan marker, not a color change.
+  const worst = worstStatus(["ok", ...flagged.map((i) => i.view.status), ...mine.map((a) => AGENT_STATUS[a.state])]);
   const ports = servers.filter((s) => s.repo === project.repo && (s.state === "running" || s.state === "starting"));
-  const open = () => !expanded && toggle(project.repo);
+
+  const summary = review?.diff
+    ? { text: `${review.agent} done · +${review.diff.additions} −${review.diff.deletions} to review`, cls: "text-mid" }
+    : activeSvc
+      ? { text: activeSvc.view.summary, cls: "text-active/80" }
+      : flagged.length
+        ? null
+        : { text: gh?.view.summary ?? items[0]?.view.summary ?? "no services", cls: "text-dim" };
 
   return (
-    <li data-project={project.repo}>
+    <li data-project={project.repo} className="group">
       <div
         onClick={() => toggle(project.repo)}
         aria-expanded={expanded}
-        className={`relative flex h-[28px] cursor-pointer items-center gap-[8px] px-[12px] text-[10.5px] transition-colors ${
+        className={`relative flex h-[26px] cursor-pointer items-center gap-[8px] px-[12px] text-[10.5px] transition-colors ${
           expanded ? "bg-panel-raised" : "hover:bg-panel-raised/50"
         }`}
       >
         {expanded && <span className="absolute inset-y-[4px] left-0 w-[2px] bg-mid" />}
         <Dot tone={STATUS_TONE[worst]} />
-        <span className="w-[104px] shrink-0 truncate text-ink">{project.repo}</span>
-        <span className="flex min-w-0 items-center gap-[4px] overflow-hidden">
-          {items.map(({ adapter, view }) => (
-            <Chip key={adapter.id} label={adapter.chip} tone={STATUS_TONE[view.status]} title={`${adapter.label} · ${view.summary}`} onClick={open} />
+        <span className="w-[96px] shrink-0 truncate text-ink">{project.repo}</span>
+        {flagged.map(({ adapter, view }) => (
+          <Chip
+            key={adapter.id}
+            label={adapter.chip}
+            tone={STATUS_TONE[view.status]}
+            title={`${adapter.label} · ${view.summary}`}
+            onClick={() => !expanded && toggle(project.repo)}
+          />
+        ))}
+        {summary && <span className={`min-w-0 truncate text-[10px] ${summary.cls}`}>{summary.text}</span>}
+        <span className="ml-auto flex shrink-0 items-center gap-[10px]">
+          {running.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              data-agent-marker={a.id}
+              title={`${a.agent} running · ${a.task} · open its session`}
+              onClick={(e) => {
+                e.stopPropagation();
+                select(a.sessionId);
+              }}
+              className="flex items-center gap-[5px] text-[9.5px] text-active/90 hover:text-active"
+            >
+              <Dot tone="active" pulse />
+              {a.agent}
+            </button>
           ))}
-        </span>
-        <span className="ml-auto flex shrink-0 items-center gap-[8px]">
           {ports.map((s) => (
-            <span key={s.id} className="text-[9.5px] tabular-nums text-active/80" title={`${s.command} · pid ${s.pid}`}>
+            <button
+              key={s.id}
+              type="button"
+              title={`${s.command} · pid ${s.pid} · open its log`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (s.sessionId) select(s.sessionId);
+              }}
+              className="text-[9.5px] tabular-nums text-active/70 hover:text-active"
+            >
               :{s.port}
-            </span>
+            </button>
           ))}
           <button
             type="button"
@@ -87,9 +136,11 @@ function ProjectRow({ project }: { project: DevProject }) {
               e.stopPropagation();
               openPicker(picking ? null : project.repo);
             }}
-            className={`text-[10px] ${picking ? "text-ink" : "text-ghost hover:text-mid"}`}
+            className={`w-[10px] text-[11px] leading-none transition-opacity ${
+              picking ? "text-ink opacity-100" : "text-ghost opacity-0 hover:text-mid focus-visible:opacity-100 group-hover:opacity-100"
+            }`}
           >
-            + service
+            +
           </button>
         </span>
       </div>
@@ -98,15 +149,15 @@ function ProjectRow({ project }: { project: DevProject }) {
   );
 }
 
-/** One compact row per project; chips only for the services that project uses. */
-export default function Projects() {
+/** One line per project: gray when healthy, a chip only for services that need attention. */
+export default function Projects({ views }: { views: Record<string, ServiceItem[]> }) {
   const projects = useDevStore((s) => s.projects);
   return (
     <section aria-label="projects" className="shrink-0">
-      <SectionHead title="PROJECTS" meta={`${projects.length} repos · services per project`} />
+      <SectionHead title="PROJECTS" meta={String(projects.length)} />
       <ul className="-mx-[12px] mt-[6px]">
         {projects.map((p) => (
-          <ProjectRow key={p.repo} project={p} />
+          <ProjectRow key={p.repo} project={p} items={views[p.repo] ?? []} />
         ))}
       </ul>
     </section>

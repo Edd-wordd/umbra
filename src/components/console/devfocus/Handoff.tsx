@@ -1,44 +1,57 @@
 "use client";
 
+import { useEffect } from "react";
 import { useDevStore } from "@/lib/dev/store";
 import { formatClock } from "@/lib/time";
-import { Btn, Dot, SectionHead } from "./ui";
+import { Btn, Dot } from "./ui";
 
-/** "Where you left off": last session per repo; collapses once sessions are resumed. */
+const RANK = { broken: 0, attention: 1, active: 2, mid: 3 } as const;
+export const HANDOFF_AUTO_FOLD_MS = 30_000;
+
+/**
+ * "Where you left off": a short card on the first open only. Folds after the
+ * first interaction anywhere in the Dev view or after 30 s; reopen from the
+ * header ("left off") or ⌘K "Where I left off".
+ */
 export default function Handoff() {
   const handoff = useDevStore((s) => s.handoff);
   const open = useDevStore((s) => s.handoffOpen);
+  const setHandoff = useDevStore((s) => s.setHandoff);
   const resume = useDevStore((s) => s.resumeSessions);
-  const agents = useDevStore((s) => s.agents.length);
-  const drawerOpen = useDevStore((s) => s.expandedProject !== null);
 
-  if (!open || drawerOpen) {
-    return (
-      <section aria-label="where you left off">
-        <SectionHead title="WHERE YOU LEFT OFF" meta={open ? `${handoff.items.length} repos · folded while a project is open` : `resumed · ${agents} sessions reattached`}>
-          <button type="button" className="text-dim hover:text-ink" onClick={() => useDevStore.setState({ handoffOpen: true, expandedProject: null })}>
-            show ▾
-          </button>
-        </SectionHead>
-      </section>
-    );
-  }
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => setHandoff(false), HANDOFF_AUTO_FOLD_MS);
+    return () => clearTimeout(t);
+  }, [open, setHandoff]);
+
+  if (!open || handoff.items.length === 0) return null;
+  const items = [...handoff.items].sort((a, b) => RANK[a.tone] - RANK[b.tone]);
+  const shown = items.slice(0, 3);
 
   return (
-    <section aria-label="where you left off" className="shrink-0">
-      <SectionHead title="WHERE YOU LEFT OFF" meta={`last session ${formatClock(new Date(handoff.at))}`}>
-        <Btn onClick={() => useDevStore.setState({ handoffOpen: false })} tone="quiet">
-          DISMISS
-        </Btn>
-        <Btn onClick={() => resume()}>RESUME SESSIONS</Btn>
-      </SectionHead>
-      <ul className="mt-[8px]">
-        {handoff.items.map((h) => (
-          <li key={h.repo} className="flex h-[20px] items-center gap-[8px] text-[10.5px]">
-            <Dot tone={h.tone === "mid" ? "mid" : h.tone} />
-            <span className="w-[112px] shrink-0 truncate text-ink">{h.repo}</span>
-            <span className="w-[132px] shrink-0 truncate text-dim">{h.branch}</span>
-            <span className={`min-w-0 truncate ${h.tone === "broken" ? "text-broken/85" : "text-mid"}`}>{h.summary}</span>
+    <section aria-label="where you left off" data-handoff className="umbra-fade-in shrink-0 border border-line px-[12px] py-[8px]">
+      <div className="flex h-[16px] items-center gap-[10px] text-[9.5px] leading-none">
+        <span className="tracking-[2px] text-mid">LEFT OFF</span>
+        <span className="text-dim">
+          {formatClock(new Date(handoff.at))}
+          {items.length > shown.length ? ` · ${items.length} repos` : ""}
+        </span>
+        <span className="ml-auto flex items-center gap-[4px]">
+          <Btn tone="quiet" onClick={() => resume()}>
+            RESUME
+          </Btn>
+          <Btn tone="quiet" onClick={() => setHandoff(false)} title="fold (reopen: left off · ⌘K)">
+            ✕
+          </Btn>
+        </span>
+      </div>
+      <ul className="mt-[5px]">
+        {shown.map((h) => (
+          <li key={h.repo} className="flex h-[18px] items-center gap-[10px] text-[10px]">
+            <Dot tone={h.tone} />
+            <span className="w-[100px] shrink-0 truncate text-mid">{h.repo}</span>
+            <span className={`min-w-0 truncate ${h.tone === "broken" ? "text-broken/80" : "text-dim"}`}>{h.summary}</span>
           </li>
         ))}
       </ul>

@@ -1,5 +1,7 @@
 import { formatAge } from "../format";
-import { defineService, notConnected, type ServiceRow } from "./types";
+import { defineService, notConnected, type ServiceNeed, type ServiceRow } from "./types";
+
+const DAY = 24 * 60 * 60_000;
 
 /** Solo-dev view of a repo: what is not committed, not pushed, gone stale, and is CI green. */
 export interface GithubPayload {
@@ -58,8 +60,22 @@ export const github = defineService<GithubPayload>({
     rows.push({ k: "open PRs", v: String(p.openPrs), tone: "dim" });
 
     const failed = run?.status === "failed";
+    const needs: ServiceNeed[] = [];
+    if (failed)
+      needs.push({
+        tone: "broken",
+        text: `ci #${run.number} ✕ ${run.summary.split(" · ")[0]}`,
+        refs: [run.id, ...(run.sentryId ? [run.sentryId] : [])],
+        action: { label: "run tests", toolId: "dev.tests.run", args: { repo: ctx.project.repo } },
+      });
+    // Solo dev: work that exists only on this laptop is the real risk.
+    if (!p.remote && p.ahead) needs.push({ tone: "attention", text: `${p.ahead} commits not backed up · no remote` });
+    else if (p.remote && p.ahead && ctx.now - p.lastCommit.at > DAY)
+      needs.push({ tone: "attention", text: `${p.ahead} unpushed · ${formatAge(ctx.now - p.lastCommit.at)}` });
+
     return {
-      status: failed ? "broken" : run?.status === "running" ? "active" : "ok",
+      status: failed ? "broken" : needs.length ? "attention" : run?.status === "running" ? "active" : "ok",
+      needs,
       summary: failed
         ? `ci #${run.number} ✕ ${run.summary.split(" · ")[0]}`
         : run?.status === "running"

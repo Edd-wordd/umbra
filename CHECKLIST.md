@@ -50,7 +50,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] PostHog integration
 - [x] Figma integration
 - [x] **NO WakaTime** (explicitly excluded)
-- [x] Dev focus **mockup** (sample data): agent watch, terminal with risky-command approval, ports, per-project service adapters (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker, Figma; `+ service`), hand-off, dispatch, activity strip, core attention
+- [x] Dev focus **mockup** (sample data): needs-you list (derived), compact project lines, on-demand terminal with risky-command approval, folded ports, per-project service adapters (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker, Figma; `+ service`), hand-off, dispatch, activity strip, core attention
 - [ ] Dev focus on live data: Mac-helper terminal bridge (PTY sessions, agent prompts, lsof) behind the same `DevBridge` interface
 
 ### Homelab + Network

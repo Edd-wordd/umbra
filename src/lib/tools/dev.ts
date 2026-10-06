@@ -9,7 +9,7 @@ export const DEV_TOOLS: readonly Tool[] = [
   {
     id: "dev.focus.open",
     domain: "dev",
-    title: "Open Dev focus (agents · terminal · ports)",
+    title: "Open Dev focus (needs you · projects)",
     risk: "read",
     keywords: ["agents", "terminal", "cursor", "codex", "sessions", "workspace"],
     run: async (ctx) => {
@@ -71,6 +71,31 @@ export const DEV_TOOLS: readonly Tool[] = [
       const label = ctx.args?.label ?? "link";
       useDevStore.getState().log(ctx.source, `open ${label} ↗ · sample, no browser`, "info");
       return { ok: true, message: `SAMPLE · would open ${label}` };
+    },
+  },
+  {
+    id: "dev.handoff.open",
+    domain: "dev",
+    title: "Where I left off (dev)",
+    risk: "read",
+    keywords: ["handoff", "left off", "last session", "yesterday"],
+    run: async (ctx) => {
+      ctx.wakeRail("dev");
+      useDevStore.getState().setHandoff(true);
+      return { ok: true, message: "dev · where you left off" };
+    },
+  },
+  {
+    id: "dev.dispatch.focus",
+    domain: "dev",
+    title: "Send to agent…",
+    risk: "read",
+    keywords: ["dispatch", "agent", "codex", "cursor", "pi", "task", "branch"],
+    run: async (ctx) => {
+      ctx.wakeRail("dev");
+      // After the palette closes and the Dev view has mounted.
+      setTimeout(() => useDevStore.getState().focusDispatch(), 60);
+      return { ok: true, message: "dev · send to agent" };
     },
   },
   {

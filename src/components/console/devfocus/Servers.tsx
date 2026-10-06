@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { SERVER_TONE } from "@/lib/dev/format";
 import { useDevStore } from "@/lib/dev/store";
 import type { DockerPayload } from "@/lib/dev/services/docker";
 import type { DevServer } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
-import { ApprovalStrip, Btn, Dot, SectionHead, TEXT_TONE } from "./ui";
+import { ApprovalStrip, Btn, Dot, TEXT_TONE } from "./ui";
 
 function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
   const select = useDevStore((st) => st.select);
@@ -72,19 +73,41 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
   );
 }
 
-/** Dev servers + who holds which port. */
+/**
+ * Dev servers + who holds which port. Folded to one muted line by default;
+ * a stale port holder already surfaces under "Needs you".
+ */
 export default function Servers() {
   const servers = useDevStore((s) => s.servers);
   const selectedId = useDevStore((s) => s.selectedId);
-  const running = servers.filter((s) => s.state === "running").length;
+  const [open, setOpen] = useState(false);
+  const running = servers.filter((s) => s.state === "running" || s.state === "starting");
+  const stale = servers.filter((s) => s.state === "stale").length;
   return (
     <section aria-label="dev servers" className="shrink-0">
-      <SectionHead title="DEV SERVERS · PORTS" meta={`${running} running · lsof via mac helper`} />
-      <ul className="-mx-[12px] mt-[6px]">
-        {servers.map((s) => (
-          <ServerRow key={s.id} s={s} selected={!!s.sessionId && s.sessionId === selectedId} />
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex h-[22px] w-full items-center gap-[8px] text-left text-[10px] text-dim hover:text-mid"
+      >
+        <span className="w-[10px] text-ghost">{open ? "▾" : "▸"}</span>
+        <span className="tracking-[1px]">servers</span>
+        <span>· {running.length} running</span>
+        {running.map((s) => (
+          <span key={s.id} className="tabular-nums text-active/70">
+            :{s.port}
+          </span>
         ))}
-      </ul>
+        {stale > 0 && <span className="text-attention/80">· {stale} stale</span>}
+      </button>
+      {open && (
+        <ul className="umbra-fade-in -mx-[12px] mt-[4px]">
+          {servers.map((s) => (
+            <ServerRow key={s.id} s={s} selected={!!s.sessionId && s.sessionId === selectedId} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

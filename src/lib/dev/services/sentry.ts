@@ -28,6 +28,14 @@ export const sentry = defineService<SentryPayload>({
     return {
       status: "attention",
       summary: `${p.issues.length} issues · ×${total} in 24h`,
+      needs: [
+        {
+          tone: "attention",
+          text: `${top.id} ×${top.count24h} · ${top.title.split(":")[0]}`,
+          refs: p.issues.map((i) => i.id),
+          action: { label: `open ${top.id} ↗`, toolId: "dev.link.open", args: { label: `sentry ${top.id}` } },
+        },
+      ],
       rows: [
         ...p.issues.map((i, n) => ({ k: i.id, v: `${i.title} · ×${i.count24h}`, tone: n === 0 ? ("attention" as const) : undefined })),
         ...(linked ? [{ k: "ci link", v: `${linked.sentryId} matches ci #${linked.number} failure · likely one fix`, tone: "attention" as const }] : []),
