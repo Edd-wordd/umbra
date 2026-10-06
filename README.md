@@ -5,6 +5,6 @@ Edward's personal life OS: a quiet, tactical desk console with a living mesh bra
 - Plan and status: [CHECKLIST.md](./CHECKLIST.md)
 - Design rules: [DESIGN.md](./DESIGN.md)
 - Moodboard: [references/](./references/)
-- Wireframes: `wireframes/` (coming)
+- Wireframes: [wireframes/](./wireframes/)
 
 Status: Phase 0 (pre-code). No app scaffold yet.
