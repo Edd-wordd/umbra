@@ -2,7 +2,7 @@
 
 > Personal life OS · interactive agent (not a dashboard)  
 > Product, bot, and repo: **Umbra**  
-> Last updated: 2026-10-05 8:51 PM MT
+> Last updated: 2026-10-05 9:55 PM MT
 
 Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
@@ -15,7 +15,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Framing: personal life OS — interactive agent, **not** a metrics dashboard
 - [x] Primary interaction: silent until touch or voice; centerpiece is a living mesh brain
 - [ ] Public-facing README / positioning copy drafted
-- [ ] Repo scaffold created under `umbra`
+- [x] Repo scaffold created under `umbra`
 
 ---
 
@@ -31,7 +31,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
   - [x] Floating panels / window-clutter HUD
   - [x] Busy sci-fi wallpaper
   - [x] Everything-at-once information density
-- [ ] DESIGN.md constraints applied to first UI shell
+- [x] DESIGN.md constraints applied to first UI shell
 - [ ] Moodboard references reviewed (`references/`)
 
 ---
@@ -128,7 +128,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Voice: **LiveKit** (Agents)
 - [x] Optional: **Screenpipe MCP**
 - [x] Astro: **INDI Web Manager** (Pi)
-- [ ] Stack versions pinned in repo
+- [x] Stack versions pinned in repo
 - [ ] Local bridge protocol / auth sketched
 
 ---
@@ -181,7 +181,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
 ## 6. Build phases (order)
 
-- [ ] **Phase 0 — Foundations**  
+- [x] **Phase 0 — Foundations**  
   Repo, Next.js shell, DESIGN constraints, near-black silent canvas, mono type, grid
 - [ ] **Phase 1 — Core brain**  
   R3F system core; idle breathing, voice-reactive glow; domain sectors from the graph model
