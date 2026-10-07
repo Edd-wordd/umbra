@@ -8,7 +8,7 @@
  * newline-delimited JSON {id, method, params} → {id, result} | {id, error}, with
  * the paths under /Users/eddwordd/Documents/codes/projects rewritten to --root.
  * Supports: ping, session.snapshot, pane.read, agent.read, agent.send_keys,
- * agent.prompt, agent.focus, pane.focus, pane.send_input, pane.send_text,
+ * agent.prompt, agent.focus, pane.focus, tab.focus, pane.send_input, pane.send_text,
  * pane.send_keys, pane.process_info, events.subscribe; and test controls:
  * mock.set_status {pane_id, status, screen?}, mock.close_workspace {workspace_id},
  * mock.reopen_workspace {workspace_id}, mock.log.
@@ -133,6 +133,14 @@ function handle(method, params = {}) {
       snap.focused_pane_id = id;
       snap.focused_workspace_id = p.workspace_id;
       return { type: "ok" };
+    }
+    case "tab.focus": {
+      const p = snap.panes.find((x) => x.tab_id === params.tab_id);
+      if (!p) throw err("tab_not_found", `tab ${params.tab_id} not found`);
+      log.push({ method, tab: params.tab_id });
+      for (const w of snap.workspaces) w.focused = w.workspace_id === p.workspace_id;
+      snap.focused_workspace_id = p.workspace_id;
+      return { type: "tab_focused", tab_id: params.tab_id, workspace_id: p.workspace_id };
     }
     case "pane.send_input":
     case "pane.send_text":

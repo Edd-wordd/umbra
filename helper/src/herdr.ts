@@ -272,14 +272,24 @@ export class Herdr {
     await this.call("pane.send_keys", { pane_id: paneId, keys }, ["pane", "send-keys", paneId, ...keys]);
   }
 
-  async focus(paneId: string, isAgent: boolean) {
-    if (isAgent) await this.call("agent.focus", { target: paneId }, ["agent", "focus", paneId]);
-    else await this.call("pane.focus", { pane_id: paneId }, ["pane", "focus", paneId]);
+  /**
+   * Bring a pane to the front in Herdr (focusing a `done` agent marks it seen).
+   * Verified against Herdr 0.9.3 (`herdr api schema --json`, protocol 22, and the
+   * herdr.dev CLI reference for 0.9.3):
+   *   socket  agent.focus {target}  ·  pane.focus {pane_id}  ·  tab.focus {tab_id}
+   *   cli     herdr agent focus <target>  ·  herdr tab focus <tab_id>
+   * The CLI has no focus-by-pane-id (`herdr pane focus` only takes --direction),
+   * so a plain pane over the CLI focuses its tab instead.
+   */
+  async focus(paneId: string, isAgent: boolean, tabId?: string) {
+    if (isAgent) return void (await this.call("agent.focus", { target: paneId }, ["agent", "focus", paneId]));
+    if (this.mode === "cli" && !tabId) throw new HerdrError("unsupported", "the herdr CLI can't focus a plain pane by id (no tab id)");
+    await this.call("pane.focus", { pane_id: paneId }, ["tab", "focus", tabId ?? ""]);
   }
 
   async processInfo(paneId: string): Promise<HProcessInfo | null> {
     try {
-      const r = await this.call("pane.process_info", { pane_id: paneId }, ["pane", "process-info", paneId], 4000);
+      const r = await this.call("pane.process_info", { pane_id: paneId }, ["pane", "process-info", "--pane", paneId], 4000);
       return (r.process_info as HProcessInfo) ?? null;
     } catch {
       return null;

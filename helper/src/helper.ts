@@ -823,7 +823,7 @@ export class Helper {
         const pane = paneOf(req.sessionId);
         if (!pane || this.herdr.mode === "off") return done("error", { why: "not a herdr pane" });
         try {
-          await this.herdr.focus(pane, this.isAgentPane(pane));
+          await this.herdr.focus(pane, this.isAgentPane(pane), this.hsnap?.panes.find((p) => p.pane_id === pane)?.tab_id);
         } catch (e) {
           return herdrFail(e, "focus");
         }

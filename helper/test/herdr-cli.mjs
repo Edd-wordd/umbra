@@ -49,13 +49,13 @@ switch (key) {
     method = "agent.focus";
     params = { target };
     break;
-  case "pane focus":
-    method = "pane.focus";
-    params = { pane_id: target };
+  case "tab focus":
+    method = "tab.focus";
+    params = { tab_id: target };
     break;
-  case "pane process-info":
+  case "pane process-info": // real form: herdr pane process-info --pane <id>
     method = "pane.process_info";
-    params = { pane_id: target };
+    params = { pane_id: flag("pane") ?? target };
     break;
   default:
     console.error(`herdr (mock cli): unsupported: ${a.join(" ")}`);
