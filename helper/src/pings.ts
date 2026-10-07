@@ -6,7 +6,7 @@ import type { PingsConfig } from "./config.js";
 import type { HerdrStatus } from "./herdr.js";
 import { deliver, type Delivery } from "./notify.js";
 import { isGithubUrl, type JumpTarget, type Jumps } from "./jumps.js";
-import type { CiRun } from "./protocol.js";
+import type { CiRun, PingInfo } from "./protocol.js";
 
 /**
  * Pings: Umbra stays out of the way and taps Edward on the shoulder (a native
@@ -20,18 +20,8 @@ import type { CiRun } from "./protocol.js";
  */
 export type PingKind = "agent.blocked" | "agent.done" | "server.died" | "ci.failed" | "work.stale" | "test";
 
-export interface Ping {
-  id: string;
-  at: number;
-  kind: PingKind;
-  repo?: string;
-  title: string;
-  message: string;
-  reason: string;
-  /** Jump URL (http://127.0.0.1:7317/jump/<token>). */
-  jump?: string;
-  delivery: Delivery | "quiet";
-}
+/** Same shape the app gets (protocol.ts). `title` has no emoji; the notification adds the project's. */
+export type Ping = PingInfo & { kind: PingKind; delivery: Delivery | "quiet" };
 
 export interface PingInput {
   kind: PingKind;
@@ -104,7 +94,7 @@ export function inQuietHours(q: PingsConfig["quietHours"], d: Date): boolean {
 
 const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const who = (a: AgentObs) => `${a.agent}${a.where ? ` (${a.where})` : ""}`;
-const head = (repo: string) => `${accentOf(repo).emoji} ${repo}`;
+
 
 export class Pings {
   readonly recent: Ping[] = [];
@@ -154,8 +144,9 @@ export class Pings {
     this.last.set(i.subject, now);
     const token = i.target ? this.jumps.mint(i.target) : undefined;
     const jump = token ? `${this.baseUrl}/jump/${token}` : undefined;
-    const delivery = quiet ? "quiet" : await deliver({ title: i.title, subtitle: i.reason, message: i.message, url: jump, group: `umbra.${i.subject}` }, this.cfg);
-    const ping: Ping = { id: `ping-${now.toString(36)}-${++this.seq}`, at: now, kind: i.kind, repo: i.repo, title: i.title, message: i.message, reason: i.reason, jump, delivery };
+    const shown = i.repo ? `${accentOf(i.repo).emoji} ${i.title}` : i.title;
+    const delivery = quiet ? "quiet" : await deliver({ title: shown, subtitle: i.reason, message: i.message, url: jump, group: `umbra.${i.subject}` }, this.cfg);
+    const ping: Ping = { id: `ping-${now.toString(36)}-${++this.seq}`, at: now, kind: i.kind, repo: i.repo, title: i.title, message: i.message, reason: i.reason, jump, target: i.target?.kind, delivery };
     this.recent.unshift(ping);
     this.recent.length = Math.min(this.recent.length, MAX_RECENT);
     this.save();
@@ -192,7 +183,7 @@ export class Pings {
           key: `blocked:${a.pane}:${a.seq}`,
           subject: `blocked:${a.pane}`,
           repo: a.repo,
-          title: `${head(a.repo)} · ${who(a)} needs you`,
+          title: `${a.repo} · ${who(a)} needs you`,
           message: a.question || `${a.agent} is waiting on a dialog`,
           reason: "agent waiting on you",
           target,
@@ -206,7 +197,7 @@ export class Pings {
           key: `done:${a.pane}:${a.completion ?? a.seq}`,
           subject: `done:${a.pane}`,
           repo: a.repo,
-          title: `${head(a.repo)} · ${who(a)} finished`,
+          title: `${a.repo} · ${who(a)} finished`,
           message: a.task ? `“${a.task}” · ready for you` : "ready for review",
           reason: "agent finished",
           target,
@@ -260,7 +251,7 @@ export class Pings {
       key: `server:${d.repo}:${d.port}:${d.at}`,
       subject: `server:${d.repo}:${d.port}`,
       repo: d.repo,
-      title: `${head(d.repo)} · :${d.port} ${back ? "restarted" : "went down"}`,
+      title: `${d.repo} · :${d.port} ${back ? "restarted" : "went down"}`,
       message: back ? `${d.command} died and came back · open localhost:${d.port}` : `${d.command} stopped listening · open the project in Cursor`,
       reason: "dev server died",
       target: back ? { kind: "localhost", port: d.port } : { kind: "cursor", dir: d.dir, label: d.repo },
@@ -275,7 +266,7 @@ export class Pings {
       key: `ci:${run.id}`,
       subject: `ci:${run.repo}`,
       repo: run.repo,
-      title: `${head(run.repo)} · CI failed`,
+      title: `${run.repo} · CI failed`,
       message: `${run.summary}${run.failing[0] ? ` · ${run.failing[0]}` : ""} · ${run.branch}`,
       reason: "CI failed on the latest run",
       target: run.url && isGithubUrl(run.url) ? { kind: "url", url: run.url } : { kind: "cursor", dir, label: run.repo },
@@ -299,7 +290,7 @@ export class Pings {
       key: `stale:${localDay(new Date(now))}`,
       subject: "stale",
       repo: oldest.repo,
-      title: `${head(oldest.repo)}${hits.length > 1 ? ` +${hits.length - 1}` : ""} · work left behind`,
+      title: `${oldest.repo}${hits.length > 1 ? ` +${hits.length - 1}` : ""} · work left behind`,
       message: hits.map(({ r, why }) => `${r.repo} ${why.join(", ")}`).join(" · "),
       reason: `uncommitted or unpushed for more than ${this.cfg.staleWorkDays}d`,
       target: { kind: "cursor", dir: oldest.dir, label: oldest.repo },

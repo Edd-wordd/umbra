@@ -4,7 +4,6 @@ import { basename } from "node:path";
 import { ghState, latestRun, openPrCount, type GhState } from "./ci.js";
 import { audit } from "./audit.js";
 import { projectPath, type HelperConfig, type ProjectConfig } from "./config.js";
-import { accentOf } from "./colors.js";
 import { readGit, type GitState } from "./git.js";
 import { Herdr, HerdrError, approvalKeys, lastLines, questionLine, type HAgent, type HPane, type HSnapshot, type HerdrStatus } from "./herdr.js";
 import { Approvals, riskOf } from "./policy.js";
@@ -90,7 +89,7 @@ export class Helper {
     this.sessions = new SessionManager(ptyMode.mode, (ev) => this.emit(ev));
     this.herdr = new Herdr(config.herdr);
     this.pings = new Pings(config.pings, this.jumps, this.baseUrl, {
-      onPing: (p) => this.notice(`ping · ${p.title} · ${p.message}`, "info"),
+      onPing: (ping) => this.emit({ type: "ping", ping }),
       serverExitExpected: (s) => this.serverExitExpected(s),
     });
   }
@@ -156,6 +155,7 @@ export class Helper {
       projects: this.projectInfos(),
       recentProjects: this.recent,
       agentKinds: this.agentKinds(),
+      pings: this.pings.recent.slice(0, 12),
     };
   }
 
@@ -793,7 +793,7 @@ export class Helper {
       key: `test:${Date.now()}`,
       subject: "test",
       repo: "umbra",
-      title: `${accentOf("umbra").emoji} umbra · test ping`,
+      title: "umbra · test ping",
       message: "click to open umbra in Cursor",
       reason: "pnpm helper --test-ping",
       target: { kind: "cursor", dir, label: "umbra" },

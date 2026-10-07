@@ -84,7 +84,7 @@ export interface HelperConfig {
   /** Listening ports never shown (databases, Docker, other apps' local servers). */
   ignorePorts: number[];
   pings: PingsConfig;
-  /** App a Herdr jump brings to the front ("auto" = Ghostty if installed, else Terminal). */
+  /** App a Herdr jump brings to the front: "iTerm", "Ghostty", "Terminal", … or "auto" (iTerm, then Ghostty, then Terminal; whichever `open -Ra` finds). */
   jumpTerminalApp: string;
 }
 

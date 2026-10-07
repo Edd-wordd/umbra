@@ -120,6 +120,22 @@ export interface GitPayload {
   ciNote?: string;
 }
 
+/** A ping the helper sent (newest first in Snapshot.pings). `jump` is its link on this Mac. */
+export interface PingInfo {
+  id: string;
+  at: number;
+  kind: "agent.blocked" | "agent.done" | "server.died" | "ci.failed" | "work.stale" | "test";
+  repo?: RepoId;
+  /** Without the emoji the notification adds, e.g. "parallax · cursor (ws 6) needs you". */
+  title: string;
+  message: string;
+  reason: string;
+  jump?: string;
+  /** What the jump does: herdr / cursor act in place; localhost / url open a page. */
+  target?: "herdr" | "cursor" | "localhost" | "url";
+  delivery: "terminal-notifier" | "osascript" | "file" | "off" | "failed" | "quiet";
+}
+
 export interface Snapshot {
   agents: AgentSession[];
   sessions: Record<string, TermSession>;
@@ -130,6 +146,8 @@ export interface Snapshot {
   projects?: ProjectInfo[];
   recentProjects?: RecentProject[];
   agentKinds?: AgentKind[];
+  /** Recent pings, newest first. */
+  pings?: PingInfo[];
 }
 
 export type ActivityResult = "ok" | "denied" | "error" | "info" | "pending";
@@ -146,7 +164,8 @@ export type HelperEvent =
   | { type: "projects.set"; projects: ProjectInfo[]; recent: RecentProject[] }
   | { type: "ci.upsert"; run: CiRun }
   | { type: "service.upsert"; service: string; repo: RepoId; payload: unknown }
-  | { type: "notice"; text: string; result: ActivityResult };
+  | { type: "notice"; text: string; result: ActivityResult }
+  | { type: "ping"; ping: PingInfo };
 
 /** App -> helper. Risky requests also carry `approvalId` (minted via POST /approvals). */
 export type HelperRequest =

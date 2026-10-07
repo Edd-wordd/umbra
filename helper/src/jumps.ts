@@ -94,12 +94,22 @@ async function launch(file: string, args: string[]): Promise<{ ok: boolean; cmd:
 
 let detected: string | null = null;
 
-/** jumpTerminalApp: explicit name, or "auto" = Ghostty when `open -Ra Ghostty` finds it, else Terminal. */
+/** Auto-detect order: iTerm (com.googlecode.iterm2, where Edward runs Herdr), Ghostty, then Terminal. */
+export const TERMINAL_APPS = ["iTerm", "Ghostty"] as const;
+
+/** jumpTerminalApp: an explicit app name, or "auto" = the first of TERMINAL_APPS that `open -Ra <app>` finds, else Terminal. */
 export async function terminalApp(pref: string): Promise<string> {
   if (pref && pref !== "auto") return pref;
   if (detected) return detected;
-  const r = dryRun() ? { ok: false } : await run(OPEN, ["-Ra", "Ghostty"], { timeoutMs: 5000 });
-  detected = r.ok ? "Ghostty" : "Terminal";
+  detected = "Terminal";
+  if (!dryRun()) {
+    for (const app of TERMINAL_APPS) {
+      if ((await run(OPEN, ["-Ra", app], { timeoutMs: 5000 })).ok) {
+        detected = app;
+        break;
+      }
+    }
+  }
   return detected;
 }
 
