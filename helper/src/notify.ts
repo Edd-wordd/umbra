@@ -33,10 +33,12 @@ export function clean(s: string, max = 220): string {
 /** AppleScript string literal (only for fixed values; user text goes through argv). */
 export const appleString = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
-export function notifierName(pref: "auto" | "terminal-notifier" | "osascript" | "off"): "terminal-notifier" | "osascript" | "off" {
+/** Which notifier a ping would use right now ("none" = not a Mac and no terminal-notifier). */
+export function notifierName(pref: "auto" | "terminal-notifier" | "osascript" | "off"): "terminal-notifier" | "osascript" | "file" | "off" | "none" {
+  if (process.env.UMBRA_PINGS_FILE) return "file";
   if (pref === "off") return "off";
   if (pref !== "osascript" && findBin("terminal-notifier")) return "terminal-notifier";
-  return process.platform === "darwin" ? "osascript" : "off";
+  return process.platform === "darwin" ? "osascript" : "none";
 }
 
 export async function deliver(n: Notice, opts: { notifier: "auto" | "terminal-notifier" | "osascript" | "off"; sound: string }): Promise<Delivery> {
@@ -58,7 +60,7 @@ export async function deliver(n: Notice, opts: { notifier: "auto" | "terminal-no
     if (r.ok) return "terminal-notifier";
     console.error("[ping] terminal-notifier failed:", (r.stderr || r.stdout).trim().slice(0, 200), "· trying osascript");
   }
-  if (which === "off" || process.platform !== "darwin") return "off";
+  if (which !== "osascript" && which !== "terminal-notifier") return "off";
   const show = `display notification (item 1 of argv) with title (item 2 of argv) subtitle (item 3 of argv)${opts.sound ? ` sound name ${appleString(opts.sound)}` : ""}`;
   const r = await run("/usr/bin/osascript", ["-e", "on run argv", "-e", show, "-e", "end run", message, title, subtitle], { timeoutMs: 10_000 });
   if (!r.ok) console.error("[ping] osascript failed:", r.stderr.trim().slice(0, 200));

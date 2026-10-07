@@ -18,8 +18,8 @@ export const PALETTE: readonly Accent[] = [
   { name: "violet", hex: "#b18cff", emoji: "🟣" },
   { name: "orchid", hex: "#df7cf0", emoji: "🟪" },
   { name: "rose", hex: "#ff7fb0", emoji: "🩷" },
-  { name: "ice", hex: "#b9d3e8", emoji: "⚪" },
   { name: "clay", hex: "#c79a86", emoji: "🟤" },
+  { name: "ice", hex: "#b9d3e8", emoji: "⚪" },
 ];
 
 /** FNV-1a (32-bit) of the repo folder name → palette slot. */

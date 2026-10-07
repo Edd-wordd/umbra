@@ -56,8 +56,8 @@ if (helper.herdr.mode !== "off") {
 console.log(`config ${here} · audit ${relative(process.cwd(), AUDIT_FILE) || AUDIT_FILE}`);
 const pingInfo = helper.info().pings;
 console.log(
-  pingInfo === "off"
-    ? "pings off"
+  pingInfo === "off" || pingInfo === "none"
+    ? `pings ${pingInfo === "off" ? "off" : "on, but no notifier here (macOS only)"} · recent: ${url}/pings`
     : `pings via ${pingInfo}${pingInfo === "osascript" ? " (not clickable: brew install terminal-notifier)" : ""} · recent: ${url}/pings${config.pings.quietHours.enabled ? ` · quiet ${config.pings.quietHours.start}–${config.pings.quietHours.end}` : ""}`,
 );
 if (created) {

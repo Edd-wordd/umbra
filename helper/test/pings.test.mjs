@@ -13,7 +13,6 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { createServer } from "node:http";
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -83,8 +82,9 @@ function herdr(method, params = {}) {
     s.on("connect", () => s.write(JSON.stringify({ id: "t", method, params }) + "\n"));
     s.on("data", (d) => (buf += d));
     s.on("end", () => {
-      const env = JSON.parse(buf.trim());
-      env.error ? reject(new Error(env.error.message)) : resolve(env.result);
+      const reply = JSON.parse(buf.trim());
+      if (reply.error) reject(new Error(reply.error.message));
+      else resolve(reply.result);
     });
     s.on("error", reject);
   });
