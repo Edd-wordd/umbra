@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p helper --noEmit",
+    "helper": "pnpm --filter umbra-helper start",
+    "helper:build": "pnpm --filter umbra-helper build"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

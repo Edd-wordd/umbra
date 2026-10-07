@@ -11,12 +11,18 @@ export interface GithubPayload {
   uncommitted: number;
   /** Commits not on the remote (with no remote: commits never pushed anywhere). */
   ahead: number;
+  /** Live: commits on the remote not pulled yet (when tracking). */
+  behind?: number;
+  /** Live: commit time of the oldest unpushed commit. */
+  oldestUnpushedAt?: number;
   staleBranches: { name: string; days: number }[];
   lastCommit: { sha: string; message: string; at: number };
   openPrs: number;
   workflows: boolean;
   /** Last local check when there is no CI (e.g. "lint ✓ build ✓"). */
   localChecks?: { text: string; at: number };
+  /** Why CI is unknown (e.g. gh not logged in). */
+  ciNote?: string;
 }
 
 export const github = defineService<GithubPayload>({
@@ -30,7 +36,13 @@ export const github = defineService<GithubPayload>({
     const rows: ServiceRow[] = [
       { k: "branch", v: `${p.branch} · ${p.uncommitted ? `${p.uncommitted} uncommitted` : "clean"}` },
       p.remote
-        ? { k: "remote", v: `${p.remote} · ${p.ahead ? `${p.ahead} unpushed` : "in sync"}`, tone: p.ahead ? "attention" : undefined }
+        ? {
+            k: "remote",
+            v: `${p.remote} · ${p.ahead ? `${p.ahead} unpushed` : p.behind ? "" : "in sync"}${p.behind ? `${p.ahead ? " · " : ""}${p.behind} behind` : ""}${
+              p.ahead && p.oldestUnpushedAt ? ` · oldest ${formatAge(ctx.now - p.oldestUnpushedAt)}` : ""
+            }`,
+            tone: p.ahead ? "attention" : undefined,
+          }
         : { k: "remote", v: `none · local only · ${p.ahead} commits not backed up`, tone: "attention" },
       { k: "last commit", v: `${p.lastCommit.sha} ${p.lastCommit.message} · ${formatAge(ctx.now - p.lastCommit.at)}` },
       {
@@ -41,7 +53,7 @@ export const github = defineService<GithubPayload>({
     ];
 
     if (run) {
-      const mark = run.status === "failed" ? "✕" : run.status === "running" ? "◌" : "✓";
+      const mark = run.status === "failed" ? "✕" : run.status === "running" ? "◌" : run.status === "cancelled" ? "–" : "✓";
       rows.push({
         k: "actions",
         v: `#${run.number} ${mark} ${run.status === "running" ? `running · ${run.summary}` : run.summary} · ${formatAge(ctx.now - run.at)}`,
@@ -53,6 +65,8 @@ export const github = defineService<GithubPayload>({
       }
     } else if (!p.remote) {
       rows.push({ k: "actions", v: "n/a · no remote", tone: "dim" });
+    } else if (p.ciNote) {
+      rows.push({ k: "actions", v: p.ciNote, tone: "dim" });
     } else {
       rows.push({ k: "actions", v: p.workflows ? "no runs yet" : "no workflows", tone: "dim" });
     }
@@ -70,8 +84,8 @@ export const github = defineService<GithubPayload>({
       });
     // Solo dev: work that exists only on this laptop is the real risk.
     if (!p.remote && p.ahead) needs.push({ tone: "attention", text: `${p.ahead} commits not backed up · no remote` });
-    else if (p.remote && p.ahead && ctx.now - p.lastCommit.at > DAY)
-      needs.push({ tone: "attention", text: `${p.ahead} unpushed · ${formatAge(ctx.now - p.lastCommit.at)}` });
+    else if (p.remote && p.ahead && ctx.now - (p.oldestUnpushedAt ?? p.lastCommit.at) > DAY)
+      needs.push({ tone: "attention", text: `${p.ahead} unpushed · oldest ${formatAge(ctx.now - (p.oldestUnpushedAt ?? p.lastCommit.at))}` });
 
     return {
       status: failed ? "broken" : needs.length ? "attention" : run?.status === "running" ? "active" : "ok",

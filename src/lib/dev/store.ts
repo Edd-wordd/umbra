@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { createDevSnapshot, createMockDevBridge, MOCK_REPOS, type MockVariant } from "../mock/dev";
+import { createDevSnapshot, createMockDevBridge, MOCK_AGENT_KINDS, type MockVariant } from "../mock/dev";
 import type { Attention } from "../store";
 import { shortCwd } from "./format";
 import { PROJECTS, type DevProject } from "./projects";
@@ -17,6 +17,7 @@ import type {
   DevBridge,
   DevEvent,
   DevSnapshot,
+  RecentProject,
   RepoId,
   TermLine,
 } from "./types";
@@ -43,9 +44,25 @@ export interface PendingApproval {
   args?: Record<string, string>;
 }
 
+/** Mac helper connection, mirrored in the top bar ("mac") and the Dev header tag. */
+export interface HelperStatus {
+  /** off = not configured · connecting · live · down = configured but unreachable */
+  state: "off" | "connecting" | "live" | "down";
+  hostname?: string;
+  pty?: string;
+  gh?: string;
+  herdr?: string;
+  error?: string;
+}
+
 interface DevState extends DevSnapshot {
   /** Which sample world is loaded (`?mock=quiet` = a good day). */
   mock: MockVariant;
+  /** "live" while the Mac helper bridge is attached; "mock" = sample data. */
+  bridgeMode: "mock" | "live";
+  helper: HelperStatus;
+  /** Agents "send to agent" can start (live: from the helper config). */
+  agentKinds: AgentKind[];
   /** Terminal session shown on the right; "" = none (the terminal only appears on demand). */
   selectedId: string;
   pending: PendingApproval | null;
@@ -53,8 +70,10 @@ interface DevState extends DevSnapshot {
   handoffOpen: boolean;
   /** Bumped to focus the one-line "send to agent" input (⌘K). */
   dispatchFocusAt: number;
-  /** Per-project config (which services each repo uses); "+ service" edits it locally. */
+  /** Per-project config (which services each repo uses); "+ service" edits it locally. Live: the repos open in Herdr. */
   projects: DevProject[];
+  /** Live: projects whose Herdr workspaces closed recently. */
+  recentProjects: RecentProject[];
   /** Project whose service details are open under the terminal. */
   expandedProject: RepoId | null;
   /** Project whose "+ service" picker is open. */
@@ -69,6 +88,14 @@ interface DevState extends DevSnapshot {
 
   apply: (ev: DevEvent) => void;
   loadMock: (variant: MockVariant) => void;
+  /** Swap in the live helper bridge with its first snapshot. */
+  attachBridge: (bridge: DevBridge, snapshot: DevSnapshot, label: string) => void;
+  /** Helper went away: back to the sample bridge. */
+  detachBridge: (why: string) => void;
+  setHelper: (helper: HelperStatus) => void;
+  startShell: (repo: RepoId, source?: ActivitySource) => void;
+  /** Live: bring this pane to the front in Herdr. */
+  focusPane: (sessionId: string, source?: ActivitySource) => void;
   closeTerminal: () => void;
   setHandoff: (open: boolean) => void;
   focusDispatch: () => void;
@@ -130,6 +157,7 @@ export const useDevStore = create<DevState>()((set, get) => {
     handoffOpen: true,
     dispatchFocusAt: 0,
     projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
+    recentProjects: [],
     expandedProject: null,
     pickerFor: null,
     activity: seedActivity("default"),
@@ -137,6 +165,9 @@ export const useDevStore = create<DevState>()((set, get) => {
     dispatchRepo: "deadbridge-site",
     dispatchAgent: "codex",
     followNewAgent: false,
+    bridgeMode: "mock",
+    helper: { state: "off" },
+    agentKinds: [...MOCK_AGENT_KINDS],
 
     apply: (ev) =>
       set((s) => {
@@ -164,7 +195,28 @@ export const useDevStore = create<DevState>()((set, get) => {
             return prev ? { sessions: { ...s.sessions, [ev.sessionId]: { ...prev, lines: [] } } } : {};
           }
           case "server.upsert":
-            return { servers: s.servers.map((x) => (x.id === ev.server.id ? ev.server : x)) };
+            return {
+              servers: s.servers.some((x) => x.id === ev.server.id) ? s.servers.map((x) => (x.id === ev.server.id ? ev.server : x)) : [...s.servers, ev.server],
+            };
+          case "servers.set":
+            return { servers: ev.servers };
+          case "agent.remove":
+            return { agents: s.agents.filter((a) => a.id !== ev.agentId) };
+          case "projects.set": {
+            // Keep services attached locally with "+ service" for projects that stay open.
+            const projects = ev.projects.map((p) => {
+              const prev = s.projects.find((x) => x.repo === p.repo);
+              return { ...p, services: prev ? [...new Set([...p.services, ...prev.services])] : [...p.services] };
+            });
+            const repos = new Set(projects.map((p) => p.repo));
+            return {
+              projects,
+              recentProjects: ev.recent,
+              expandedProject: s.expandedProject && repos.has(s.expandedProject) ? s.expandedProject : null,
+              pickerFor: s.pickerFor && repos.has(s.pickerFor) ? s.pickerFor : null,
+              dispatchRepo: repos.has(s.dispatchRepo) ? s.dispatchRepo : (projects[0]?.repo ?? s.dispatchRepo),
+            };
+          }
           case "ci.upsert":
             return {
               ci: s.ci.some((r) => r.repo === ev.run.repo)
@@ -183,7 +235,7 @@ export const useDevStore = create<DevState>()((set, get) => {
       }),
 
     loadMock: (variant) => {
-      if (variant === get().mock) return;
+      if (variant === get().mock && get().bridgeMode === "mock") return;
       unsubscribe();
       const snap = createDevSnapshot(Date.now(), variant);
       bridge = createMockDevBridge(snap);
@@ -191,18 +243,70 @@ export const useDevStore = create<DevState>()((set, get) => {
       set({
         ...snap,
         mock: variant,
+        bridgeMode: "mock",
+        agentKinds: [...MOCK_AGENT_KINDS],
+        dispatchRepo: "deadbridge-site",
+        dispatchAgent: "codex",
         selectedId: "",
         pending: null,
         handoffOpen: true,
         expandedProject: null,
         pickerFor: null,
         projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
+        recentProjects: [],
         activity: seedActivity(variant),
         signals: [],
       });
     },
 
-    closeTerminal: () => set({ selectedId: "" }),
+    attachBridge: (live, snap, label) => {
+      unsubscribe();
+      bridge = live;
+      unsubscribe = bridge.subscribe((ev) => get().apply(ev));
+      const projects = snap.projects?.map((p) => ({ ...p, services: [...p.services] })) ?? get().projects;
+      const kinds = snap.agentKinds?.length ? snap.agentKinds : get().agentKinds;
+      set({
+        ...snap,
+        projects,
+        recentProjects: snap.recentProjects ?? [],
+        agentKinds: kinds,
+        mock: "default",
+        bridgeMode: "live",
+        selectedId: "",
+        pending: null,
+        handoffOpen: true,
+        expandedProject: null,
+        pickerFor: null,
+        signals: [],
+        dispatchRepo: projects.some((p) => p.repo === get().dispatchRepo) ? get().dispatchRepo : (projects[0]?.repo ?? get().dispatchRepo),
+        dispatchAgent: kinds.includes(get().dispatchAgent) ? get().dispatchAgent : kinds[0],
+        // Sample-world entries would read as real history: start the log fresh.
+        activity: [{ id: nid("x"), at: Date.now(), source: "bridge" as const, text: `mac helper connected · ${label}`, result: "ok" as const }],
+      });
+    },
+
+    detachBridge: (why) => {
+      if (get().bridgeMode !== "live") return;
+      set({ mock: "quiet" }); // force loadMock("default") to rebuild
+      get().loadMock("default");
+      get().log("bridge", `mac helper disconnected · ${why} · showing sample data`, "error");
+    },
+
+    setHelper: (helper) => set({ helper }),
+
+    startShell: (repo, source = "touch") => {
+      const sessionId = nid("sh-");
+      get().log(source, `open shell · ${repo}`, "ok");
+      bridge.send({ type: "session.start", repo, kind: "shell", sessionId });
+      set({ selectedId: sessionId });
+    },
+
+    focusPane: (sessionId, source = "touch") => {
+      get().log(source, `focus in Herdr · ${sessionLabel(get(), sessionId)}`, "ok");
+      bridge.send({ type: "pane.focus", sessionId });
+    },
+
+    closeTerminal: () => get().select(""),
     setHandoff: (handoffOpen) => set({ handoffOpen }),
     focusDispatch: () => set({ dispatchFocusAt: Date.now() }),
 
@@ -216,16 +320,36 @@ export const useDevStore = create<DevState>()((set, get) => {
     log: (source, text, result = "ok") =>
       set((s) => ({ activity: [...s.activity, { id: nid("x"), at: Date.now(), source, text, result }].slice(-MAX_LOG) })),
 
-    select: (selectedId) => set({ selectedId }),
+    select: (selectedId) => {
+      const prev = get().selectedId;
+      if (prev === selectedId) return;
+      set({ selectedId });
+      // Live: Herdr panes are read on demand, only while on screen.
+      if (get().bridgeMode === "live") {
+        if (prev.startsWith("pane:")) bridge.send({ type: "term.watch", sessionId: prev, on: false });
+        if (selectedId.startsWith("pane:")) bridge.send({ type: "term.watch", sessionId: selectedId, on: true });
+      }
+    },
 
     runCommand: (raw, source = "touch") => {
       const command = raw.trim();
       if (!command) return;
       const s = get();
       const sessionId = s.selectedId;
-      echo(sessionId, promptFor(sessionId) + command);
+      const live = s.bridgeMode === "live";
+      // Live sessions echo through their own TTY; the sample shell needs a local echo.
+      if (!live) echo(sessionId, promptFor(sessionId) + command);
       if (s.pending) {
         echo(sessionId, "… one approval at a time · resolve the held action first", "dim");
+        return;
+      }
+      if (live && s.sessions[sessionId]?.managed === false) {
+        echo(sessionId, "✕ read-only · this process isn't in Herdr or started from Umbra · open a shell from the project", "dim");
+        return;
+      }
+      const target = s.agents.find((a) => a.sessionId === sessionId);
+      if (live && target?.state === "waiting") {
+        echo(sessionId, "… the agent is waiting on a dialog · answer it with Approve / Deny first", "dim");
         return;
       }
       const risk = classifyCommand(command);
@@ -263,7 +387,7 @@ export const useDevStore = create<DevState>()((set, get) => {
       if (!a?.prompt) return;
       get().log(source, `${answer === "approve" ? "approved" : "denied"} ${a.prompt.title.toLowerCase()} · ${a.repo}/${a.agent}`, answer === "approve" ? "ok" : "denied");
       bridge.send({ type: "agent.respond", agentId, promptId: a.prompt.id, answer });
-      set({ selectedId: a.sessionId });
+      get().select(a.sessionId);
     },
 
     requestKill: (port, source = "touch") => {
@@ -293,7 +417,7 @@ export const useDevStore = create<DevState>()((set, get) => {
       if (!approved) return { ok: false, message: `kill ${srv.pid} needs approval` };
       get().log(source, `approved kill ${srv.pid} · free :${port}`, "ok");
       bridge.send({ type: "process.kill", pid: srv.pid, approved: true });
-      return { ok: true, message: `SAMPLE · kill ${srv.pid} sent · :${port} freeing` };
+      return { ok: true, message: `${get().bridgeMode === "live" ? "LIVE" : "SAMPLE"} · kill ${srv.pid} sent · :${port} freeing` };
     },
 
     startServer: (serverId, source = "touch") => {
@@ -308,16 +432,24 @@ export const useDevStore = create<DevState>()((set, get) => {
       const task = raw.trim();
       if (!task) return;
       const { dispatchRepo: repo, dispatchAgent: agent } = get();
-      set({ followNewAgent: true });
       get().log(source, `dispatched ${repo}/${agent} · “${task}”`, "ok");
+      if (get().bridgeMode === "live") {
+        // Herdr: the task goes to an idle agent already open in that project; follow it.
+        const ready = get().agents.find((a) => a.repo === repo && a.agent === agent && (a.state === "idle" || a.state === "done"));
+        if (ready) get().select(ready.sessionId);
+      } else set({ followNewAgent: true });
       bridge.send({ type: "agent.dispatch", repo, agent, task });
     },
 
     cycleDispatchRepo: () => {
-      const i = MOCK_REPOS.indexOf(get().dispatchRepo);
-      set({ dispatchRepo: MOCK_REPOS[(i + 1) % MOCK_REPOS.length] });
+      const repos = get().projects.map((p) => p.repo);
+      const i = repos.indexOf(get().dispatchRepo);
+      set({ dispatchRepo: repos[(i + 1) % repos.length] ?? get().dispatchRepo });
     },
-    cycleDispatchAgent: () => set({ dispatchAgent: get().dispatchAgent === "cursor" ? "codex" : "cursor" }),
+    cycleDispatchAgent: () => {
+      const kinds = get().agentKinds;
+      set({ dispatchAgent: kinds[(kinds.indexOf(get().dispatchAgent) + 1) % kinds.length] ?? get().dispatchAgent });
+    },
 
     resumeSessions: (source = "touch") => {
       get().log(source, "resume sessions · reattach terminals", "ok");
@@ -349,15 +481,17 @@ export const useDevStore = create<DevState>()((set, get) => {
     runTests: (repo, source = "touch") => {
       const agent = get().agents.find((a) => a.repo === repo);
       get().log(source, `run ${repo} tests`, "ok");
-      if (agent) set({ selectedId: agent.sessionId });
+      if (agent && get().bridgeMode !== "live") set({ selectedId: agent.sessionId });
       bridge.send({ type: "tests.run", repo });
     },
 
     reviewDiff: (agentId, source = "touch") => {
       const a = get().agents.find((x) => x.id === agentId);
       if (!a) return;
-      set({ selectedId: a.sessionId });
+      get().select(a.sessionId);
       get().log(source, `review diff · ${a.repo}/${a.agent}`, "info");
+      // A Herdr pane hosts the agent itself: typing there would prompt it, not run git.
+      if (a.sessionId.startsWith("pane:")) return;
       echo(a.sessionId, promptFor(a.sessionId) + "git diff --stat");
       bridge.send({ type: "term.exec", sessionId: a.sessionId, command: "git diff --stat", approved: false });
     },

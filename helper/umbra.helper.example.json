@@ -1,0 +1,34 @@
+{
+  "host": "127.0.0.1",
+  "port": 7317,
+  "token": "generated-on-first-run",
+  "herdr": {
+    "transport": "auto",
+    "socket": "~/.config/herdr/herdr.sock",
+    "bin": "herdr"
+  },
+  "projectsRoot": "~/Documents/codes/projects",
+  "projects": [
+    { "repo": "umbra", "services": ["github"], "dev": { "command": "pnpm dev --port 3002", "port": 3002 } },
+    { "repo": "parallax", "services": ["github", "sentry"] },
+    { "repo": "deadbridge-site", "services": ["github", "supabase", "posthog", "docker", "figma"] },
+    { "repo": "theHuddle", "services": ["github", "supabase"] },
+    { "repo": "carne-seca-ecommerce", "test": "pnpm test --run" }
+  ],
+  "fallbackProjects": [
+    { "repo": "umbra" },
+    { "repo": "parallax" },
+    { "repo": "deadbridge-site" },
+    { "repo": "google" }
+  ],
+  "agents": {
+    "cursor": { "command": "cursor-agent" },
+    "claude": { "command": "claude" }
+  },
+  "allowedOrigins": [],
+  "poll": { "herdrSeconds": 2, "procSeconds": 5, "gitSeconds": 30, "ciSeconds": 120 },
+  "pty": "auto",
+  "staleBranchDays": 14,
+  "recentHours": 12,
+  "ignorePorts": [5432, 6379]
+}

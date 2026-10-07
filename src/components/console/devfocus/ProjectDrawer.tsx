@@ -66,9 +66,16 @@ function Sessions({ repo }: { repo: string }) {
   const select = useDevStore((s) => s.select);
   const reviewDiff = useDevStore((s) => s.reviewDiff);
   const start = useDevStore((s) => s.startServer);
+  const live = useDevStore((s) => s.bridgeMode === "live");
+  const sessions = useDevStore((s) => s.sessions);
+  const startShell = useDevStore((s) => s.startShell);
+  const path = useDevStore((s) => s.projects.find((p) => p.repo === repo)?.path ?? "");
   const mine = agents.filter((a) => a.repo === repo);
   const srv = servers.filter((s) => s.repo === repo);
-  if (!mine.length && !srv.length) return null;
+  // Live: the other terminals in this project (Herdr panes, helper shells), not already shown as an agent or server.
+  const taken = new Set([...mine.map((a) => a.sessionId), ...srv.flatMap((s) => (s.sessionId ? [s.sessionId] : []))]);
+  const others = live && path ? Object.values(sessions).filter((t) => !taken.has(t.id) && t.managed !== false && (t.cwd === path || t.cwd.startsWith(path + "/"))) : [];
+  if (!mine.length && !srv.length && !others.length && !live) return null;
   const tag = (id: string, sel: boolean, onClick: () => void, children: React.ReactNode) => (
     <button
       key={id}
@@ -108,6 +115,19 @@ function Sessions({ repo }: { repo: string }) {
               </>
             ))
           : null,
+      )}
+      {others.map((t) =>
+        tag(t.id, t.id === selectedId, () => select(t.id), (
+          <>
+            <Dot tone="dim" />
+            {t.title.split(" · ").slice(1).join(" · ") || t.title}
+          </>
+        )),
+      )}
+      {live && (
+        <Btn tone="quiet" onClick={() => startShell(repo)} title="a shell run by the helper (outside Herdr) in this repo">
+          + SHELL
+        </Btn>
       )}
       {srv
         .filter((s) => s.state === "stopped")

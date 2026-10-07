@@ -75,7 +75,8 @@ export const useTriageStore = create<TriageState>()((set, get) => ({
         const d = combineTriage(sig, r.answers as TriageAnswers, { source: r.source, model: r.model, ms: r.ms, fallback: r.fallback });
         next[r.id] = d;
         delete still[r.id];
-        logDecision(sig, d);
+        // Signals that left play meanwhile (e.g. sample data replaced by the live bridge) aren't logged.
+        if (get().signals.some((x) => x.id === r.id)) logDecision(sig, d);
       }
       for (const x of fresh) delete still[x.id];
       set({ decisions: next, inflight: still });

@@ -210,6 +210,24 @@ function RowView({ row }: { row: Row }) {
         </span>
       </div>
       <Reason d={d} deciding={row.deciding} pinned={n?.kind === "held"} />
+      {n?.kind === "agent-waiting" && n.agent?.prompt?.detail.includes("\n") && (
+        // Live (Herdr): the last lines of the agent's screen, so he sees what he's approving.
+        <pre
+          data-prompt-excerpt={n.agent.id}
+          onClick={onClick}
+          className="relative mb-[4px] ml-[25px] mr-[12px] cursor-pointer overflow-hidden border border-line bg-black/35 py-[5px] pl-[10px] pr-[8px] text-[9.5px] leading-[15px] text-dim"
+        >
+          <span className="absolute -left-px top-[-1px] bottom-[-1px] w-px bg-attention/70" />
+          {n.agent.prompt.detail
+            .split("\n")
+            .slice(-5)
+            .map((l, i, all) => (
+              <div key={i} className={`truncate ${i === all.length - 1 ? "text-attention/90" : ""}`}>
+                {l || " "}
+              </div>
+            ))}
+        </pre>
+      )}
       {holding && pending && (
         <div className="px-[12px] pb-[6px] pt-[2px]">
           <ApprovalStrip command={pending.command} reason={pending.reason} onApprove={() => void approvePending()} onDeny={denyPending} />

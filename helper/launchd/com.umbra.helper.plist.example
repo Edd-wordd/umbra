@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OPTIONAL: keep the Umbra Mac helper running in the background (launchd).
+  Not installed by anything. To use it:
+    1. pnpm helper:build            (compiles helper/dist once; rebuild after pulling changes)
+    2. cp helper/launchd/com.umbra.helper.plist.example ~/Library/LaunchAgents/com.umbra.helper.plist
+    3. Edit the three paths marked EDIT (node from `nvm which 22`, the repo path, your home).
+    4. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.umbra.helper.plist
+  Stop / remove: launchctl bootout gui/$(id -u)/com.umbra.helper
+  Logs: /tmp/umbra-helper.log (stdout + stderr).
+  PATH matters: launchd starts with a bare PATH, and the helper calls herdr (~/.local/bin),
+  gh and lsof (/usr/local/bin, /usr/sbin), git and ps.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.umbra.helper</string>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- EDIT: output of `nvm which 22` -->
+    <string>/Users/eddwordd/.nvm/versions/node/v22.23.3/bin/node</string>
+    <!-- EDIT: repo path -->
+    <string>/Users/eddwordd/Documents/codes/projects/umbra/helper/dist/main.js</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <!-- EDIT: repo path -->
+  <string>/Users/eddwordd/Documents/codes/projects/umbra</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/eddwordd/.local/bin:/Users/eddwordd/.nvm/versions/node/v22.23.3/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/eddwordd</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/umbra-helper.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/umbra-helper.log</string>
+</dict>
+</plist>

@@ -54,7 +54,9 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Decision layer (Jev, TypeSafe System One): server-only `/api/decide`, typed client + Noul/Choice/Score builders, local fallback (`jev` | `local`), Needs-you triage (5 atomic questions → priority + placement), `?mock=events` stream, decisions in the activity log
 - [ ] Jev live-tested with a real `TYPESAFE_API_KEY` (built against the documented API; only the local fallback has run so far)
 - [ ] Jev: command routing (⌘K / voice → tool), wire `secondRiskCheck` into held commands, Deadbridge lead scoring, Astro go/no-go
-- [ ] Dev focus on live data: Mac-helper terminal bridge (PTY sessions, agent prompts, lsof) behind the same `DevBridge` interface
+- [x] Dev focus on live data: Mac helper (`pnpm helper`) behind the same `DevBridge` interface: projects + agents from open **Herdr** workspaces (socket + CLI fallback), pane output / prompt / keys / focus, blocked agents → Needs you with Approve/Deny keys, ports via lsof (pane-linked, orphans, kill via approval), git per project, gh CI + failing job; LIVE / SAMPLE tag, `mac` health dot; 127.0.0.1 + server-side token + one-time tickets; approval ids for risky actions; audit log
+- [ ] Mac helper verified on the real Mac against real Herdr (built and tested on Linux against a mock Herdr made from captured fixtures: socket framing, CLI forms for `focus` / `process-info` / `send-keys`, key names, macOS lsof / gh auth still unproven)
+- [ ] Mac helper: Tailscale access (remote devices), launchd install, per-project service config persisted from `+ service`
 
 ### Homelab + Network
 - [ ] Proxmox status / surfaces
@@ -111,6 +113,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
 ### Bridge health
 - [ ] Heartbeats for bridge, Pi, Mac helper, printer; a dead device shows as a red node
+- [x] Mac helper heartbeat: top-bar `mac` dot (solid = live, hollow = not configured, red = unreachable) + `GET /health` on the helper
 
 ### Small Comms strip
 - [ ] Minimal comms strip (not a full inbox UI)
@@ -134,7 +137,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Optional: **Screenpipe MCP**
 - [x] Astro: **INDI Web Manager** (Pi)
 - [x] Stack versions pinned in repo
-- [ ] Local bridge protocol / auth sketched
+- [x] Local bridge protocol / auth sketched (Mac helper: loopback WebSocket, server-side token → one-time tickets, approval ids for risky actions, audit log; see README "Mac helper")
 
 ---
 

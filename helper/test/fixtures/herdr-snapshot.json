@@ -1,0 +1,510 @@
+{
+ "_note": "Captured from Edward's Mac (herdr 0.9.3, protocol 22) via `herdr api snapshot`; agent_session ids and layouts removed. Used by mock-herdr.mjs.",
+ "snapshot": {
+  "agents": [
+   {
+    "agent": "cursor",
+    "agent_status": "working",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "pane_id": "wS:p1",
+    "revision": 16,
+    "state_change_seq": 1975,
+    "tab_id": "wS:t1",
+    "terminal_id": "term_65cd5f4db7cc718",
+    "terminal_title": "Parallax Build Plan",
+    "terminal_title_stripped": "Parallax Build Plan",
+    "workspace_id": "wS"
+   },
+   {
+    "agent": "codex",
+    "agent_status": "idle",
+    "completion_seq": 1872,
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wT:p1",
+    "revision": 80094,
+    "state_change_seq": 1872,
+    "tab_id": "wT:t1",
+    "terminal_id": "term_65cd5f6e7e4ad19",
+    "terminal_title": "Create phased lead visibility plan | deadbridge-site",
+    "terminal_title_stripped": "Create phased lead visibility plan | deadbridge-site",
+    "workspace_id": "wT"
+   },
+   {
+    "agent": "cursor",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "pane_id": "wZ:p1",
+    "revision": 8,
+    "state_change_seq": 1861,
+    "tab_id": "wZ:t1",
+    "terminal_id": "term_65d240d8983cc29",
+    "terminal_title": "Cursor Agent",
+    "terminal_title_stripped": "Cursor Agent",
+    "workspace_id": "wZ"
+   },
+   {
+    "agent": "pi",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "pane_id": "wV:p1",
+    "revision": 19,
+    "screen_detection_skipped": true,
+    "state_change_seq": 49,
+    "tab_id": "wV:t1",
+    "terminal_id": "term_65cd5f737c4c51a",
+    "terminal_title": "\u03c0 - google",
+    "terminal_title_stripped": "\u03c0 - google",
+    "workspace_id": "wV"
+   },
+   {
+    "agent": "codex",
+    "agent_status": "idle",
+    "completion_seq": 1740,
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wW:p1",
+    "revision": 3,
+    "state_change_seq": 1740,
+    "tab_id": "wW:t1",
+    "terminal_id": "term_65ce8780135b222",
+    "terminal_title": "deadbridge-site",
+    "terminal_title_stripped": "deadbridge-site",
+    "workspace_id": "wW"
+   },
+   {
+    "agent": "cursor",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "pane_id": "wY:p1",
+    "revision": 3,
+    "state_change_seq": 563,
+    "tab_id": "wY:t1",
+    "terminal_id": "term_65cf81d2b539e25",
+    "terminal_title": "Cursor Agent",
+    "terminal_title_stripped": "Cursor Agent",
+    "workspace_id": "wY"
+   }
+  ],
+  "focused_pane_id": "wZ:p3",
+  "focused_tab_id": "wZ:t1",
+  "focused_workspace_id": "wZ",
+  "panes": [
+   {
+    "agent": "cursor",
+    "agent_status": "working",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "pane_id": "wS:p1",
+    "revision": 16,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 64
+    },
+    "tab_id": "wS:t1",
+    "terminal_id": "term_65cd5f4db7cc718",
+    "terminal_title": "Parallax Build Plan",
+    "terminal_title_stripped": "Parallax Build Plan",
+    "workspace_id": "wS"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd",
+    "pane_id": "wS:p2",
+    "revision": 13,
+    "scroll": {
+     "max_offset_from_bottom": 59,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wS:t1",
+    "terminal_id": "term_65cd604bd8a461d",
+    "terminal_title": "eddwordd@Edds-MacBook-Pro:~",
+    "terminal_title_stripped": "eddwordd@Edds-MacBook-Pro:~",
+    "workspace_id": "wS"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "pane_id": "wS:p6",
+    "revision": 53,
+    "scroll": {
+     "max_offset_from_bottom": 1162,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wS:t1",
+    "terminal_id": "term_65cfcf03e785227",
+    "terminal_title": "npm run dev -- -p 3001",
+    "terminal_title_stripped": "npm run dev -- -p 3001",
+    "workspace_id": "wS"
+   },
+   {
+    "agent": "codex",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wT:p1",
+    "revision": 80094,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 64
+    },
+    "tab_id": "wT:t1",
+    "terminal_id": "term_65cd5f6e7e4ad19",
+    "terminal_title": "Create phased lead visibility plan | deadbridge-site",
+    "terminal_title_stripped": "Create phased lead visibility plan | deadbridge-site",
+    "workspace_id": "wT"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd",
+    "pane_id": "wT:p2",
+    "revision": 17,
+    "scroll": {
+     "max_offset_from_bottom": 9054,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wT:t1",
+    "terminal_id": "term_65cd5fb0ffbb61b",
+    "terminal_title": "eddwordd@Edds-MacBook-Pro:~",
+    "terminal_title_stripped": "eddwordd@Edds-MacBook-Pro:~",
+    "workspace_id": "wT"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wT:p3",
+    "revision": 11,
+    "scroll": {
+     "max_offset_from_bottom": 2293,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wT:t1",
+    "terminal_id": "term_65cd5fe9eeba71c",
+    "terminal_title": "pnpm dev",
+    "terminal_title_stripped": "pnpm dev",
+    "workspace_id": "wT"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wT:p4",
+    "revision": 1,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 66
+    },
+    "tab_id": "wT:t2",
+    "terminal_id": "term_65cfd6b26d62428",
+    "terminal_title": "eddwordd@Edds-MBP:~/Documents/codes/projects/deadbridge-site",
+    "terminal_title_stripped": "eddwordd@Edds-MBP:~/Documents/codes/projects/deadbridge-site",
+    "workspace_id": "wT"
+   },
+   {
+    "agent": "cursor",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "pane_id": "wZ:p1",
+    "revision": 8,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 64
+    },
+    "tab_id": "wZ:t1",
+    "terminal_id": "term_65d240d8983cc29",
+    "terminal_title": "Cursor Agent",
+    "terminal_title_stripped": "Cursor Agent",
+    "workspace_id": "wZ"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd",
+    "pane_id": "wZ:p2",
+    "revision": 1,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wZ:t1",
+    "terminal_id": "term_65d240e74effc2a",
+    "terminal_title": "eddwordd@Edds-MacBook-Pro:~",
+    "terminal_title_stripped": "eddwordd@Edds-MacBook-Pro:~",
+    "workspace_id": "wZ"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "focused": true,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/umbra",
+    "pane_id": "wZ:p3",
+    "revision": 23,
+    "scroll": {
+     "max_offset_from_bottom": 202,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wZ:t1",
+    "terminal_id": "term_65d240edf61dc2b",
+    "terminal_title": "pnpm dev",
+    "terminal_title_stripped": "pnpm dev",
+    "workspace_id": "wZ"
+   },
+   {
+    "agent": "pi",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "pane_id": "wV:p1",
+    "revision": 19,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 64
+    },
+    "tab_id": "wV:t1",
+    "terminal_id": "term_65cd5f737c4c51a",
+    "terminal_title": "\u03c0 - google",
+    "terminal_title_stripped": "\u03c0 - google",
+    "workspace_id": "wV"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd",
+    "pane_id": "wV:p2",
+    "revision": 4,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wV:t1",
+    "terminal_id": "term_65cd60a905b7e1f",
+    "terminal_title": "eddwordd@Edds-MacBook-Pro:~",
+    "terminal_title_stripped": "eddwordd@Edds-MacBook-Pro:~",
+    "workspace_id": "wV"
+   },
+   {
+    "agent_status": "unknown",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/google",
+    "pane_id": "wV:p3",
+    "revision": 19,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 31
+    },
+    "tab_id": "wV:t1",
+    "terminal_id": "term_65cd60acd9b6320",
+    "terminal_title": "eddwordd@Edds-MacBook-Pro:~/Documents/codes/projects/google",
+    "terminal_title_stripped": "eddwordd@Edds-MacBook-Pro:~/Documents/codes/projects/google",
+    "workspace_id": "wV"
+   },
+   {
+    "agent": "codex",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/deadbridge-site",
+    "pane_id": "wW:p1",
+    "revision": 3,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 66
+    },
+    "tab_id": "wW:t1",
+    "terminal_id": "term_65ce8780135b222",
+    "terminal_title": "deadbridge-site",
+    "terminal_title_stripped": "deadbridge-site",
+    "workspace_id": "wW"
+   },
+   {
+    "agent": "cursor",
+    "agent_status": "idle",
+    "cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "focused": false,
+    "foreground_cwd": "/Users/eddwordd/Documents/codes/projects/parallax",
+    "pane_id": "wY:p1",
+    "revision": 3,
+    "scroll": {
+     "max_offset_from_bottom": 0,
+     "offset_from_bottom": 0,
+     "viewport_rows": 66
+    },
+    "tab_id": "wY:t1",
+    "terminal_id": "term_65cf81d2b539e25",
+    "terminal_title": "Cursor Agent",
+    "terminal_title_stripped": "Cursor Agent",
+    "workspace_id": "wY"
+   }
+  ],
+  "protocol": 22,
+  "tabs": [
+   {
+    "agent_status": "working",
+    "focused": false,
+    "label": "1",
+    "number": 1,
+    "pane_count": 3,
+    "tab_id": "wS:t1",
+    "workspace_id": "wS"
+   },
+   {
+    "agent_status": "idle",
+    "focused": false,
+    "label": "1",
+    "number": 1,
+    "pane_count": 3,
+    "tab_id": "wT:t1",
+    "workspace_id": "wT"
+   },
+   {
+    "agent_status": "unknown",
+    "focused": false,
+    "label": "2",
+    "number": 2,
+    "pane_count": 1,
+    "tab_id": "wT:t2",
+    "workspace_id": "wT"
+   },
+   {
+    "agent_status": "idle",
+    "focused": true,
+    "label": "1",
+    "number": 1,
+    "pane_count": 3,
+    "tab_id": "wZ:t1",
+    "workspace_id": "wZ"
+   },
+   {
+    "agent_status": "idle",
+    "focused": false,
+    "label": "1",
+    "number": 1,
+    "pane_count": 3,
+    "tab_id": "wV:t1",
+    "workspace_id": "wV"
+   },
+   {
+    "agent_status": "idle",
+    "focused": false,
+    "label": "1",
+    "number": 1,
+    "pane_count": 1,
+    "tab_id": "wW:t1",
+    "workspace_id": "wW"
+   },
+   {
+    "agent_status": "idle",
+    "focused": false,
+    "label": "1",
+    "number": 1,
+    "pane_count": 1,
+    "tab_id": "wY:t1",
+    "workspace_id": "wY"
+   }
+  ],
+  "version": "0.9.3",
+  "workspaces": [
+   {
+    "active_tab_id": "wS:t1",
+    "agent_status": "working",
+    "focused": false,
+    "label": "parallax",
+    "number": 1,
+    "pane_count": 3,
+    "tab_count": 1,
+    "workspace_id": "wS"
+   },
+   {
+    "active_tab_id": "wT:t1",
+    "agent_status": "idle",
+    "focused": false,
+    "label": "deadbridge-site",
+    "number": 2,
+    "pane_count": 4,
+    "tab_count": 2,
+    "workspace_id": "wT"
+   },
+   {
+    "active_tab_id": "wZ:t1",
+    "agent_status": "idle",
+    "focused": true,
+    "label": "umbra",
+    "number": 3,
+    "pane_count": 3,
+    "tab_count": 1,
+    "workspace_id": "wZ"
+   },
+   {
+    "active_tab_id": "wV:t1",
+    "agent_status": "idle",
+    "focused": false,
+    "label": "google",
+    "number": 4,
+    "pane_count": 3,
+    "tab_count": 1,
+    "workspace_id": "wV"
+   },
+   {
+    "active_tab_id": "wW:t1",
+    "agent_status": "idle",
+    "focused": false,
+    "label": "deadbridge-site",
+    "number": 5,
+    "pane_count": 1,
+    "tab_count": 1,
+    "workspace_id": "wW"
+   },
+   {
+    "active_tab_id": "wY:t1",
+    "agent_status": "idle",
+    "focused": false,
+    "label": "parallax",
+    "number": 6,
+    "pane_count": 1,
+    "tab_count": 1,
+    "workspace_id": "wY"
+   }
+  ]
+ }
+}

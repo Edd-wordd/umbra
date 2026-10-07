@@ -11,16 +11,17 @@ import type { DevSignal } from "./signals";
 import type { ServicePayloads } from "./services/types";
 
 export type RepoId = "umbra" | "parallax" | "deadbridge-site" | "google" | (string & {});
-export type AgentKind = "cursor" | "codex" | "pi";
+export type AgentKind = "cursor" | "codex" | "pi" | "claude" | (string & {});
 
 /**
  * running  cyan   agent is working
  * waiting  amber  agent is blocked on you (prompt)
+ * idle     gray   ready for input (live: Herdr "idle" / "unknown")
  * done     gray   finished; diff ready for review
  * failed   red    stopped on an error (tests, build)
  * stopped  gray   ended without result (denied, quit)
  */
-export type AgentState = "running" | "waiting" | "done" | "failed" | "stopped";
+export type AgentState = "running" | "waiting" | "idle" | "done" | "failed" | "stopped";
 
 export interface AgentPrompt {
   id: string;
@@ -58,6 +59,10 @@ export interface AgentSession {
   prompt?: AgentPrompt;
   diff?: DiffStat;
   failure?: AgentFailure;
+  /** Live bridge: true = started from Umbra (prompts watched); false = found running on the Mac. */
+  managed?: boolean;
+  pid?: number;
+  note?: string;
 }
 
 /** One rendered terminal line. The real bridge sends ANSI chunks; the helper normalises them to lines. */
@@ -76,6 +81,8 @@ export interface TermSession {
   cwd: string;
   branch: string;
   lines: TermLine[];
+  /** Live bridge: false = read-only placeholder for a process Umbra didn't start. */
+  managed?: boolean;
 }
 
 export type ServerState = "running" | "starting" | "stale" | "stopped" | "free";
@@ -89,9 +96,10 @@ export interface DevServer {
   state: ServerState;
   sessionId?: string;
   note?: string;
+  startedAt?: number;
 }
 
-export type CiStatus = "passed" | "failed" | "running";
+export type CiStatus = "passed" | "failed" | "running" | "cancelled";
 
 export interface CiRun {
   id: string;
@@ -103,6 +111,7 @@ export interface CiRun {
   failing: string[];
   sentryId?: string;
   at: number;
+  url?: string;
 }
 
 export interface Handoff {
@@ -120,6 +129,33 @@ export interface DevSnapshot {
   /** Per-service, per-repo payloads rendered by the service adapters (src/lib/dev/services). */
   services: ServicePayloads;
   handoff: { at: number; items: Handoff[] };
+  /** Live bridge: the projects open in Herdr right now (replaces the built-in project list). */
+  projects?: LiveProject[];
+  /** Live bridge: projects whose Herdr workspaces closed recently. */
+  recentProjects?: RecentProject[];
+  /** Live bridge: agents the helper can start. */
+  agentKinds?: AgentKind[];
+}
+
+/** Herdr's agent status vocabulary (blocked = waiting on Edward). */
+export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
+
+export interface LiveProject {
+  repo: RepoId;
+  path: string;
+  services: string[];
+  /** Herdr workspace label. */
+  label?: string;
+  /** Herdr workspace ids on this repo (often two). */
+  workspaces?: string[];
+  agentStatus?: HerdrStatus;
+}
+
+export interface RecentProject {
+  repo: RepoId;
+  path: string;
+  label?: string;
+  lastSeen: number;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -134,7 +170,13 @@ export type DevRequest =
   | { type: "process.kill"; pid: number; approved: boolean }
   | { type: "server.start"; serverId: string }
   | { type: "tests.run"; repo: RepoId }
-  | { type: "sessions.resume" };
+  | { type: "sessions.resume" }
+  /** Live bridge: open a managed shell in a project (id chosen by the UI so it can select it). */
+  | { type: "session.start"; repo: RepoId; kind: "shell"; sessionId?: string }
+  /** Live bridge: stream this session's output while it's on screen (Herdr panes are read on demand). */
+  | { type: "term.watch"; sessionId: string; on: boolean }
+  /** Live bridge: jump to this pane in Herdr. */
+  | { type: "pane.focus"; sessionId: string };
 
 /** Bridge -> UI. The store is a pure reducer over these. */
 export type DevEvent =
@@ -144,6 +186,11 @@ export type DevEvent =
   | { type: "term.append"; sessionId: string; lines: TermLine[] }
   | { type: "term.clear"; sessionId: string }
   | { type: "server.upsert"; server: DevServer }
+  /** Live bridge: the full listening-port list (ports come and go). */
+  | { type: "servers.set"; servers: DevServer[] }
+  /** Live bridge: Herdr workspaces opened/closed → the project list changed. */
+  | { type: "projects.set"; projects: LiveProject[]; recent: RecentProject[] }
+  | { type: "agent.remove"; agentId: string }
   | { type: "ci.upsert"; run: CiRun }
   | { type: "service.upsert"; service: string; repo: RepoId; payload: unknown }
   | { type: "notice"; text: string; result: ActivityResult }

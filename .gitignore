@@ -25,3 +25,8 @@ next-env.d.ts
 # debug
 npm-debug.log*
 .pnpm-debug.log*
+
+# mac helper (real config holds the token; logs are local)
+/helper/umbra.helper.json
+/helper/logs/
+/helper/dist/

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useDevStore } from "@/lib/dev/store";
 import { useMinuteClock } from "@/lib/hooks/useClock";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { VOICE_STATES, useUmbra, type VoiceState } from "@/lib/store";
@@ -9,7 +10,7 @@ import { voiceLevel } from "@/lib/voice/level";
 
 type Health = "ok" | "down" | "unknown";
 
-/** Bridge-health heartbeats. Static placeholders until the bridge exists (Phase 2). */
+/** Bridge-health heartbeats. "mac" is the Mac helper (live); the rest are placeholders until their bridges exist. */
 const HEALTH: { id: string; label: string; state: Health }[] = [
   { id: "bridge", label: "bridge", state: "ok" },
   { id: "pi", label: "pi", state: "ok" },
@@ -17,19 +18,40 @@ const HEALTH: { id: string; label: string; state: Health }[] = [
   { id: "printer", label: "printer", state: "ok" },
 ];
 
+function useMacHealth(): { state: Health; title: string; pulse: boolean } {
+  const helper = useDevStore((s) => s.helper);
+  switch (helper.state) {
+    case "live":
+      return { state: "ok", pulse: false, title: `mac: helper live · ${helper.hostname ?? ""}${helper.herdr ? ` · herdr ${helper.herdr}` : ""}` };
+    case "connecting":
+      return { state: "unknown", pulse: true, title: "mac: connecting to the helper…" };
+    case "down":
+      return { state: "down", pulse: false, title: `mac: helper unreachable · ${helper.error ?? "start it with pnpm helper"} · showing sample data` };
+    default:
+      return { state: "unknown", pulse: false, title: "mac: helper not configured (.env.local) · sample data" };
+  }
+}
+
 function Wordmark({ dim }: { dim: boolean }) {
+  const mac = useMacHealth();
   return (
     <div className="absolute left-10 top-[40px] transition-opacity duration-300" style={{ opacity: dim ? 0.6 : 1 }}>
       <div className="text-[12px] leading-none tracking-[5px] text-mid">UMBRA</div>
-      <ul className="mt-[14px] flex gap-[16px] text-[9.5px] leading-none tracking-[1px] text-dim" aria-label="bridge health (placeholder)">
-        {HEALTH.map((h) => (
-          <li key={h.id} className="flex items-center gap-[5px]" title={`${h.label}: ${h.state} (placeholder)`}>
-            <span
-              className={`inline-block h-[4px] w-[4px] rounded-full ${h.state === "down" ? "bg-broken glow-broken" : "bg-dim"}`}
-            />
-            {h.label}
-          </li>
-        ))}
+      <ul className="mt-[14px] flex gap-[16px] text-[9.5px] leading-none tracking-[1px] text-dim" aria-label="bridge health">
+        {HEALTH.map((h) => {
+          const state = h.id === "mac" ? mac.state : h.state;
+          const title = h.id === "mac" ? mac.title : `${h.label}: ${h.state} (placeholder)`;
+          return (
+            <li key={h.id} className="flex items-center gap-[5px]" title={title} data-health={h.id} data-state={state}>
+              <span
+                className={`inline-block h-[4px] w-[4px] rounded-full ${
+                  state === "down" ? "bg-broken glow-broken" : state === "unknown" ? `border border-dim bg-transparent ${h.id === "mac" && mac.pulse ? "animate-pulse" : ""}` : "bg-dim"
+                }`}
+              />
+              {h.label}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

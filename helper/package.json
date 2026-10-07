@@ -1,0 +1,24 @@
+{
+  "name": "umbra-helper",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Umbra Mac helper: feeds the Dev focus real local data (Herdr workspaces + agents, ports, git, CI) over a token-protected localhost socket.",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "tsc -p . && node dist/main.js",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

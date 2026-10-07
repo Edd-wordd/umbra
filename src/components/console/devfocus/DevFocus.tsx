@@ -57,6 +57,8 @@ function Detail() {
 export default function DevFocus() {
   const toIdle = useUmbra((s) => s.toIdle);
   const mock = useDevStore((s) => s.mock);
+  const live = useDevStore((s) => s.bridgeMode === "live");
+  const helper = useDevStore((s) => s.helper);
   const handoffOpen = useDevStore((s) => s.handoffOpen);
   const setHandoff = useDevStore((s) => s.setHandoff);
   const open = useDetailOpen();
@@ -86,16 +88,31 @@ export default function DevFocus() {
       >
         <span className="glow-active absolute -left-px top-[-1px] bottom-[-1px] w-px bg-active/70" />
         <header className="flex h-[48px] shrink-0 items-center justify-between px-5">
-          <h2 className="text-[12px] font-normal tracking-[4px] text-active">DEV · FOCUS</h2>
+          <h2 className="whitespace-nowrap text-[12px] font-normal tracking-[4px] text-active">DEV · FOCUS</h2>
           <div className="flex items-center gap-[16px] text-[10px]">
             {!handoffOpen && (
-              <button type="button" onClick={() => setHandoff(true)} className="text-dim hover:text-ink" title="where you left off (⌘K: Where I left off)">
+              <button type="button" onClick={() => setHandoff(true)} className="whitespace-nowrap text-dim hover:text-ink" title="where you left off (⌘K: Where I left off)">
                 left off ↺
               </button>
             )}
-            <span className="border border-attention/50 px-[6px] py-[2px] text-[9.5px] tracking-[2px] text-attention/80">
-              SAMPLE{mock === "quiet" ? " · QUIET" : ""}
-            </span>
+            {live ? (
+              <span
+                className="whitespace-nowrap border border-active/50 px-[6px] py-[2px] text-[9.5px] tracking-[2px] text-active/90"
+                data-bridge="live"
+                title={`mac helper on ${helper.hostname ?? "the mac"} · herdr ${helper.herdr ?? "?"}${helper.gh ? ` · gh ${helper.gh}` : ""}`}
+              >
+                LIVE · MAC
+              </span>
+            ) : (
+              <span
+                className="whitespace-nowrap border border-attention/50 px-[6px] py-[2px] text-[9.5px] tracking-[2px] text-attention/80"
+                data-bridge="sample"
+                title={helper.state === "down" ? `mac helper unreachable · ${helper.error ?? ""}` : helper.state === "off" ? "mac helper not configured (.env.local)" : undefined}
+              >
+                SAMPLE{mock === "quiet" ? " · QUIET" : ""}
+                {helper.state === "down" ? " · MAC DOWN" : ""}
+              </span>
+            )}
             <button type="button" onClick={toIdle} className="text-dim hover:text-ink" aria-label="close dev focus">
               esc ✕
             </button>

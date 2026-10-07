@@ -1,5 +1,5 @@
 import type { ServiceId } from "./services/types";
-import type { RepoId } from "./types";
+import type { HerdrStatus, RepoId } from "./types";
 
 /**
  * Per-project config: which services each repo actually uses. Only these
@@ -11,6 +11,10 @@ export interface DevProject {
   repo: RepoId;
   path: string;
   services: ServiceId[];
+  /** Live (Herdr): workspace label, workspace ids, worst agent status. */
+  label?: string;
+  workspaces?: string[];
+  agentStatus?: HerdrStatus;
 }
 
 const P = "/Users/eddwordd/Documents/codes/projects";

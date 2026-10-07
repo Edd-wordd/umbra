@@ -19,6 +19,7 @@ export type DevTone = "active" | "attention" | "broken" | "mid" | "dim";
 export const AGENT_TONE: Record<AgentState, DevTone> = {
   running: "active",
   waiting: "attention",
+  idle: "mid",
   done: "mid",
   failed: "broken",
   stopped: "dim",
@@ -32,7 +33,7 @@ export const SERVER_TONE: Record<ServerState, DevTone> = {
   free: "dim",
 };
 
-export const CI_TONE: Record<CiStatus, DevTone> = { passed: "mid", failed: "broken", running: "active" };
+export const CI_TONE: Record<CiStatus, DevTone> = { passed: "mid", failed: "broken", running: "active", cancelled: "dim" };
 
 /** 40s ago · 18m ago · 3h ago · 6d ago */
 export function formatAge(ms: number): string {

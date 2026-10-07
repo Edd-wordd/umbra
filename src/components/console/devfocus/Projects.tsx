@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useDevStore } from "@/lib/dev/store";
+import { useMinuteClock } from "@/lib/hooks/useClock";
 import type { DevProject } from "@/lib/dev/projects";
 import { SERVICES, STATUS_TONE, worstStatus, type ServiceStatus } from "@/lib/dev/services";
 import type { AgentSession } from "@/lib/dev/types";
@@ -48,7 +49,7 @@ function Picker({ project }: { project: DevProject }) {
   );
 }
 
-const AGENT_STATUS: Record<AgentSession["state"], ServiceStatus> = { running: "ok", waiting: "attention", failed: "broken", done: "ok", stopped: "ok" };
+const AGENT_STATUS: Record<AgentSession["state"], ServiceStatus> = { running: "ok", waiting: "attention", idle: "ok", failed: "broken", done: "ok", stopped: "ok" };
 
 /** Short chip labels for streamed events the decision layer placed on the project row. */
 const SIGNAL_CHIP: Partial<Record<SignalKind, string>> = {
@@ -72,8 +73,11 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
   const openPicker = useDevStore((s) => s.openPicker);
   const select = useDevStore((s) => s.select);
 
+  const live = useDevStore((s) => s.bridgeMode === "live");
   const mine = agents.filter((a) => a.repo === project.repo);
-  const running = mine.filter((a) => a.state === "running");
+  const running = mine.filter((a) => a.state === "running" || (live && a.state === "waiting"));
+  // Live (Herdr): agents sitting ready show as one quiet marker per kind.
+  const ready = live ? groupBy(mine.filter((a) => a.state === "idle" || a.state === "done"), (a) => a.agent) : [];
   const review = mine.find((a) => a.state === "done" && a.diff);
   const flagged = items.filter((i) => i.view.status === "attention" || i.view.status === "broken");
   const activeSvc = items.find((i) => i.view.status === "active");
@@ -103,7 +107,13 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
       >
         {expanded && <span className="absolute inset-y-[4px] left-0 w-[2px] bg-mid" />}
         <Dot tone={STATUS_TONE[worst]} />
-        <span className="w-[96px] shrink-0 truncate text-ink">{project.repo}</span>
+        <span
+          className="flex w-[96px] shrink-0 items-baseline gap-[4px] truncate text-ink"
+          title={project.workspaces?.length ? `${project.path} · Herdr workspace${project.workspaces.length > 1 ? "s" : ""} ${project.workspaces.join(", ")}${project.agentStatus ? ` · ${project.agentStatus}` : ""}` : project.path}
+        >
+          <span className="truncate">{project.label ?? project.repo}</span>
+          {(project.workspaces?.length ?? 0) > 1 && <span className="shrink-0 text-[9px] text-ghost">×{project.workspaces!.length}</span>}
+        </span>
         {flagged.map(({ adapter, view }) => (
           <Chip
             key={adapter.id}
@@ -128,15 +138,32 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
               key={a.id}
               type="button"
               data-agent-marker={a.id}
-              title={`${a.agent} running · ${a.task} · open its session`}
+              title={`${a.agent} ${a.state === "waiting" ? "waiting on you" : "running"}${a.task ? ` · ${a.task}` : ""}${a.note ? ` · ${a.note}` : ""} · open its session`}
               onClick={(e) => {
                 e.stopPropagation();
                 select(a.sessionId);
               }}
-              className="flex items-center gap-[5px] text-[9.5px] text-active/90 hover:text-active"
+              className={`flex items-center gap-[5px] text-[9.5px] ${a.state === "waiting" ? "text-attention/90 hover:text-attention" : "text-active/90 hover:text-active"}`}
             >
-              <Dot tone="active" pulse />
+              <Dot tone={a.state === "waiting" ? "attention" : "active"} pulse={a.state === "running"} />
               {a.agent}
+            </button>
+          ))}
+          {ready.map(([kind, list]) => (
+            <button
+              key={kind}
+              type="button"
+              data-agent-marker={list[0].id}
+              title={`${list.map((a) => `${a.agent} ${a.state}${a.note ? ` · ${a.note}` : ""}`).join("\n")} · open its session`}
+              onClick={(e) => {
+                e.stopPropagation();
+                select(list[0].sessionId);
+              }}
+              className="flex items-center gap-[5px] text-[9.5px] text-dim hover:text-mid"
+            >
+              <Dot tone="dim" />
+              {kind}
+              {list.length > 1 && <span className="text-ghost">×{list.length}</span>}
             </button>
           ))}
           {ports.map((s) => (
@@ -174,17 +201,47 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
   );
 }
 
-/** One line per project: gray when healthy, a chip only for services that need attention. */
+function groupBy<T>(xs: T[], key: (x: T) => string): [string, T[]][] {
+  const m = new Map<string, T[]>();
+  for (const x of xs) m.set(key(x), [...(m.get(key(x)) ?? []), x]);
+  return [...m.entries()];
+}
+
+const ago = (ms: number) => {
+  const m = Math.max(0, Math.round(ms / 60_000));
+  return m < 60 ? `${m}m` : `${Math.round(m / 60)}h`;
+};
+
+/** One line per project: gray when healthy, a chip only for services that need attention. Live: one per repo open in Herdr. */
 export default function Projects({ views }: { views: Record<string, ServiceItem[]> }) {
   const projects = useDevStore((s) => s.projects);
+  const recent = useDevStore((s) => s.recentProjects);
+  const live = useDevStore((s) => s.bridgeMode === "live");
+  const herdr = useDevStore((s) => s.helper.herdr);
+  const fromHerdr = live && !!herdr && !herdr.startsWith("off");
+  const now = useMinuteClock()?.getTime() ?? 0;
   return (
     <section aria-label="projects" className="shrink-0">
-      <SectionHead title="PROJECTS" meta={String(projects.length)} />
+      <SectionHead
+        title="PROJECTS"
+        meta={
+          <>
+            {projects.length}
+            {live && <span className="text-ghost"> · {fromHerdr ? "open in herdr" : "fallback list"}</span>}
+          </>
+        }
+      />
       <ul className="-mx-[12px] mt-[6px]">
+        {projects.length === 0 && <li className="px-[12px] text-[10px] text-dim">no Herdr workspaces open on a repo</li>}
         {projects.map((p) => (
           <ProjectRow key={p.repo} project={p} items={views[p.repo] ?? []} />
         ))}
       </ul>
+      {recent.length > 0 && (
+        <div className="mt-[4px] truncate pl-[13px] text-[9.5px] text-ghost" data-recent title="Herdr workspaces closed recently">
+          recent · {recent.map((r) => `${r.label ?? r.repo} ${now ? ago(now - r.lastSeen) : ""}`).join(" · ")}
+        </div>
+      )}
     </section>
   );
 }

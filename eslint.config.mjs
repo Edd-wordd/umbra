@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     // Locked design artifacts (not app code):
     "wireframes/**",
     "references/**",
+    // Compiled helper output:
+    "helper/dist/**",
   ]),
 ]);
 

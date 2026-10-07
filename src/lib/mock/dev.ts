@@ -595,6 +595,16 @@ export function createMockDevBridge(snapshot: DevSnapshot): DevBridge {
         return;
       }
 
+      case "session.start": {
+        const id = req.sessionId ?? uid("t");
+        const cwd = `${PROJECTS}/${req.repo}`;
+        const session: TermSession = { id, title: `${req.repo} · shell`, cwd, branch: "main", lines: [] };
+        model.sessions[id] = session;
+        emit({ type: "session.upsert", session: { id, title: session.title, cwd, branch: "main" } });
+        append(id, [["dim", "sample shell · nothing runs on any machine · type help"]]);
+        return;
+      }
+
       case "sessions.resume": {
         for (const a of model.agents) append(a.sessionId, [["sys", `↺ session reattached · ${a.repo}:${a.agent}`]]);
         emit({ type: "notice", text: `${model.agents.length} sessions reattached`, result: "ok" });

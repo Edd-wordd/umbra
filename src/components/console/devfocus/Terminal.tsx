@@ -5,7 +5,7 @@ import { AGENT_TONE, SERVER_TONE, shortCwd } from "@/lib/dev/format";
 import { useDevStore } from "@/lib/dev/store";
 import type { TermLine } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
-import { ApprovalStrip, Dot, TEXT_TONE } from "./ui";
+import { ApprovalStrip, Btn, Dot, TEXT_TONE } from "./ui";
 
 const LINE_TONE: Record<TermLine["kind"], string> = {
   cmd: "text-ink",
@@ -32,7 +32,11 @@ function Line({ l }: { l: TermLine }) {
   return <div className={`min-h-[1.6em] whitespace-pre-wrap break-words ${LINE_TONE[l.kind]}`}>{l.text}</div>;
 }
 
-/** Read-only transcript of the selected session + a sample command line. Plain DOM, no xterm. */
+/**
+ * Transcript of the selected session + a command line. Plain DOM, no xterm.
+ * Sample: a fake shell. Live: Herdr panes (read on demand; input goes to the
+ * pane or prompts its agent) or helper-owned shells.
+ */
 export default function Terminal() {
   const selectedId = useDevStore((s) => s.selectedId);
   const sessions = useDevStore((s) => s.sessions);
@@ -42,6 +46,9 @@ export default function Terminal() {
   const pending = useDevStore((s) => s.pending);
   const runCommand = useDevStore((s) => s.runCommand);
   const close = useDevStore((s) => s.closeTerminal);
+  const live = useDevStore((s) => s.bridgeMode === "live");
+  const focusPane = useDevStore((s) => s.focusPane);
+  const respond = useDevStore((s) => s.respondPrompt);
   const [cmd, setCmd] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [hIndex, setHIndex] = useState<number | null>(null);
@@ -63,6 +70,21 @@ export default function Terminal() {
   const tone = agent ? AGENT_TONE[agent.state] : server ? SERVER_TONE[server.state] : "dim";
   const stateLabel = agent ? (agent.state === "waiting" ? "waiting on you" : agent.state) : server ? server.state : "";
   const repo = session.cwd.split("/").pop();
+  const pane = live && selectedId.startsWith("pane:") ? selectedId.slice(5) : null;
+  const waiting = agent?.state === "waiting" && agent.prompt ? agent : null;
+  const placeholder = held
+    ? "y to approve · n / esc to deny"
+    : !live
+      ? "type a command · sample shell, nothing runs"
+      : session.managed === false
+        ? "read-only · not in Herdr or started from Umbra"
+        : waiting && pane
+          ? "waiting on a dialog · approve / deny above"
+          : pane && agent
+            ? `prompt ${agent.agent} · ⏎ sends to herdr ${pane} · ^C interrupts`
+            : pane
+              ? `command · ⏎ runs in herdr ${pane} · risky ones ask first`
+              : "command · runs on the mac · risky ones ask first";
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (held) {
@@ -116,6 +138,11 @@ export default function Terminal() {
           <Dot tone={tone} />
           {stateLabel.toUpperCase()}
         </span>
+        {pane && (
+          <Btn tone="quiet" onClick={() => focusPane(selectedId)} title={`bring ${pane} to the front in Herdr`}>
+            FOCUS IN HERDR
+          </Btn>
+        )}
         <button type="button" onClick={close} className="shrink-0 text-[10px] text-dim hover:text-ink" aria-label="close terminal" title="close terminal">
           ✕
         </button>
@@ -132,6 +159,22 @@ export default function Terminal() {
             <Line key={l.id} l={l} />
           ))}
         </div>
+        {waiting && !held && (
+          <div className="flex items-center gap-[8px] border-t border-attention/30 px-[14px] py-[6px] text-[10px]" data-waiting={waiting.id}>
+            <Dot tone="attention" />
+            <span className="min-w-0 truncate text-attention/90" title={waiting.prompt!.detail}>
+              {waiting.agent} asks · {waiting.prompt!.title}
+            </span>
+            <span className="ml-auto flex shrink-0 gap-[6px]">
+              <Btn tone="attention" onClick={() => respond(waiting.id, "approve")} title="sends the approve keys to the agent">
+                APPROVE
+              </Btn>
+              <Btn onClick={() => respond(waiting.id, "deny")} title="sends the deny keys to the agent">
+                DENY
+              </Btn>
+            </span>
+          </div>
+        )}
         {held && (
           <div className="px-[10px] pb-[8px]">
             <ApprovalStrip
@@ -156,7 +199,7 @@ export default function Terminal() {
             spellCheck={false}
             autoComplete="off"
             aria-label="terminal command"
-            placeholder={held ? "y to approve · n / esc to deny" : "type a command · sample shell, nothing runs"}
+            placeholder={placeholder}
             className="min-w-0 flex-1 bg-transparent text-ink caret-active outline-none placeholder:text-ghost"
           />
         </label>

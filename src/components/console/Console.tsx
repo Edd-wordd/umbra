@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
 import { streamSampleEvents } from "@/lib/mock/events";
 import { DOMAINS, type DomainId } from "@/lib/graph";
@@ -65,6 +66,18 @@ function useDeepLink() {
   }, []);
 }
 
+/**
+ * Live data from the Mac helper when it's configured and running (else sample
+ * data stays). `?mock=…` or `?helper=off` keeps the sample world for demos.
+ */
+function useLiveBridge() {
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has("mock") || q.get("helper") === "off") return;
+    return connectHelper();
+  }, []);
+}
+
 /** Mirrors the Dev workspace's worst state into the console's attention map (core sector + rail tick). */
 function useDevAttention() {
   useEffect(() => {
@@ -88,6 +101,7 @@ export default function Console() {
   useConsoleKeys();
   useVoiceSimulation();
   useDeepLink();
+  useLiveBridge();
   useDevAttention();
   const mode = useUmbra((s) => s.mode);
 
