@@ -5,6 +5,8 @@ import { useDevStore } from "@/lib/dev/store";
 import type { DevProject } from "@/lib/dev/projects";
 import { SERVICES, STATUS_TONE, worstStatus, type ServiceStatus } from "@/lib/dev/services";
 import type { AgentSession } from "@/lib/dev/types";
+import { useTriageStore } from "@/lib/decide/store";
+import type { SignalKind } from "@/lib/dev/signals";
 import { Btn, Chip, Dot, SectionHead } from "./ui";
 import type { ServiceItem } from "./useServiceViews";
 
@@ -48,7 +50,20 @@ function Picker({ project }: { project: DevProject }) {
 
 const AGENT_STATUS: Record<AgentSession["state"], ServiceStatus> = { running: "ok", waiting: "attention", failed: "broken", done: "ok", stopped: "ok" };
 
+/** Short chip labels for streamed events the decision layer placed on the project row. */
+const SIGNAL_CHIP: Partial<Record<SignalKind, string>> = {
+  "ci.failed": "ci",
+  "agent.done": "review",
+  "container.restarts": "docker",
+  "sentry.spike": "sentry",
+  "unpushed.stale": "unpushed",
+  "posthog.spike": "traffic",
+  "deps.update": "deps",
+};
+
 function ProjectRow({ project, items }: { project: DevProject; items: ServiceItem[] }) {
+  const triaged = useTriageStore((s) => s.signals);
+  const decisions = useTriageStore((s) => s.decisions);
   const expanded = useDevStore((s) => s.expandedProject === project.repo);
   const picking = useDevStore((s) => s.pickerFor === project.repo);
   const agents = useDevStore((s) => s.agents);
@@ -66,6 +81,8 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
   // Gray unless something needs him; running work is a cyan marker, not a color change.
   const worst = worstStatus(["ok", ...flagged.map((i) => i.view.status), ...mine.map((a) => AGENT_STATUS[a.state])]);
   const ports = servers.filter((s) => s.repo === project.repo && (s.state === "running" || s.state === "starting"));
+  // Streamed events triaged to "chip": visible here, not in Needs you.
+  const chips = triaged.filter((x) => !x.needKey && x.repo === project.repo && decisions[x.id]?.placement === "chip");
 
   const summary = review?.diff
     ? { text: `${review.agent} done · +${review.diff.additions} −${review.diff.deletions} to review`, cls: "text-mid" }
@@ -94,6 +111,14 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
             tone={STATUS_TONE[view.status]}
             title={`${adapter.label} · ${view.summary}`}
             onClick={() => !expanded && toggle(project.repo)}
+          />
+        ))}
+        {chips.map((x) => (
+          <Chip
+            key={x.id}
+            label={SIGNAL_CHIP[x.kind] ?? x.source}
+            tone={x.tone === "broken" ? "attention" : "mid"}
+            title={`${x.title} · ${decisions[x.id].reason} · triaged to project`}
           />
         ))}
         {summary && <span className={`min-w-0 truncate text-[10px] ${summary.cls}`}>{summary.text}</span>}

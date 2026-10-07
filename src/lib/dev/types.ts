@@ -1,3 +1,4 @@
+import type { DevSignal } from "./signals";
 /**
  * Dev workspace models + the wire protocol the Mac-helper terminal bridge will
  * speak (Phase 2). Today a SAMPLE in-memory bridge (src/lib/mock/dev.ts)
@@ -145,7 +146,9 @@ export type DevEvent =
   | { type: "server.upsert"; server: DevServer }
   | { type: "ci.upsert"; run: CiRun }
   | { type: "service.upsert"; service: string; repo: RepoId; payload: unknown }
-  | { type: "notice"; text: string; result: ActivityResult };
+  | { type: "notice"; text: string; result: ActivityResult }
+  /** A discrete event for the decision layer to triage (CI, Sentry, leads, …). */
+  | { type: "signal"; signal: DevSignal };
 
 export interface DevBridge {
   send(req: DevRequest): void;
@@ -156,7 +159,7 @@ export interface DevBridge {
 /* Activity log                                                               */
 /* ------------------------------------------------------------------------- */
 
-export type ActivitySource = "touch" | "palette" | "voice" | "agent" | "bridge";
+export type ActivitySource = "touch" | "palette" | "voice" | "agent" | "bridge" | "triage";
 export type ActivityResult = "ok" | "denied" | "error" | "info" | "pending";
 
 export interface ActivityEntry {

@@ -7,6 +7,7 @@ import { shortCwd } from "./format";
 import { PROJECTS, type DevProject } from "./projects";
 import { getService } from "./services";
 import { classifyCommand } from "./risk";
+import type { DevSignal } from "./signals";
 import type {
   ActivityEntry,
   ActivityResult,
@@ -29,7 +30,9 @@ import type {
 
 export interface PendingApproval {
   id: string;
-  origin: "terminal" | "ports";
+  origin: "terminal" | "ports" | "fix";
+  /** For origin "fix": the triaged signal this one-action fix resolves. */
+  signalId?: string;
   /** Exactly what will run once approved. */
   command: string;
   reason: string;
@@ -57,6 +60,8 @@ interface DevState extends DevSnapshot {
   /** Project whose "+ service" picker is open. */
   pickerFor: RepoId | null;
   activity: ActivityEntry[];
+  /** Streamed events awaiting triage / triaged (newest first, capped). */
+  signals: DevSignal[];
   dispatchRepo: RepoId;
   dispatchAgent: AgentKind;
   /** Select the next agent the bridge creates (set by dispatch). */
@@ -67,6 +72,7 @@ interface DevState extends DevSnapshot {
   closeTerminal: () => void;
   setHandoff: (open: boolean) => void;
   focusDispatch: () => void;
+  dismissSignal: (id: string, source?: ActivitySource) => void;
   log: (source: ActivitySource, text: string, result?: ActivityResult) => void;
   select: (sessionId: string) => void;
   runCommand: (command: string, source?: ActivitySource) => void;
@@ -92,6 +98,7 @@ interface DevState extends DevSnapshot {
 let n = 0;
 const nid = (p: string) => `${p}${(++n).toString(36)}`;
 const MAX_LOG = 60;
+const MAX_SIGNALS = 40;
 
 const initial = createDevSnapshot(Date.now());
 let bridge: DevBridge = createMockDevBridge(initial);
@@ -126,6 +133,7 @@ export const useDevStore = create<DevState>()((set, get) => {
     expandedProject: null,
     pickerFor: null,
     activity: seedActivity("default"),
+    signals: [],
     dispatchRepo: "deadbridge-site",
     dispatchAgent: "codex",
     followNewAgent: false,
@@ -165,6 +173,8 @@ export const useDevStore = create<DevState>()((set, get) => {
             };
           case "service.upsert":
             return { services: { ...s.services, [ev.service]: { ...s.services[ev.service], [ev.repo]: ev.payload } } };
+          case "signal":
+            return { signals: [ev.signal, ...s.signals.filter((x) => x.id !== ev.signal.id)].slice(0, MAX_SIGNALS) };
           case "notice":
             return {
               activity: [...s.activity, { id: nid("x"), at: Date.now(), source: "bridge" as const, text: ev.text, result: ev.result }].slice(-MAX_LOG),
@@ -188,12 +198,20 @@ export const useDevStore = create<DevState>()((set, get) => {
         pickerFor: null,
         projects: PROJECTS.map((p) => ({ ...p, services: [...p.services] })),
         activity: seedActivity(variant),
+        signals: [],
       });
     },
 
     closeTerminal: () => set({ selectedId: "" }),
     setHandoff: (handoffOpen) => set({ handoffOpen }),
     focusDispatch: () => set({ dispatchFocusAt: Date.now() }),
+
+    dismissSignal: (id, source = "touch") => {
+      const sig = get().signals.find((x) => x.id === id);
+      if (!sig) return;
+      set({ signals: get().signals.filter((x) => x.id !== id) });
+      get().log(source, `dismissed ${sig.repo ?? sig.source} · ${sig.title}`, "info");
+    },
 
     log: (source, text, result = "ok") =>
       set((s) => ({ activity: [...s.activity, { id: nid("x"), at: Date.now(), source, text, result }].slice(-MAX_LOG) })),
@@ -267,7 +285,11 @@ export const useDevStore = create<DevState>()((set, get) => {
 
     killPort: (port, { approved, source }) => {
       const srv = get().servers.find((x) => x.port === port && x.pid);
-      if (!srv?.pid) return { ok: false, message: `:${port} has no process` };
+      if (!srv?.pid) {
+        // Sample world: streamed port events have no process behind them.
+        if (approved) get().log(source, `:${port} already free · nothing to kill (sample)`, "info");
+        return { ok: approved, message: `:${port} has no process` };
+      }
       if (!approved) return { ok: false, message: `kill ${srv.pid} needs approval` };
       get().log(source, `approved kill ${srv.pid} · free :${port}`, "ok");
       bridge.send({ type: "process.kill", pid: srv.pid, approved: true });

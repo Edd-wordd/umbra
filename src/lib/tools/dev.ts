@@ -62,6 +62,18 @@ export const DEV_TOOLS: readonly Tool[] = [
     },
   },
   {
+    id: "dev.container.restart",
+    domain: "dev",
+    title: "Restart a container (sample)",
+    risk: "confirm",
+    keywords: ["docker", "container", "restart", "frappe"],
+    run: async (ctx) => {
+      const name = ctx.args?.service ?? "container";
+      useDevStore.getState().log(ctx.source, `restart ${name}${ctx.args?.repo ? ` · ${ctx.args.repo}` : ""} (sample)`, "ok");
+      return { ok: true, message: `SAMPLE · ${name} restart requested` };
+    },
+  },
+  {
     id: "dev.link.open",
     domain: "dev",
     title: "Open service link (repo, Sentry issue, dashboard…)",

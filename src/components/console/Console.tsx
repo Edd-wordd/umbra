@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { devAttention, useDevStore } from "@/lib/dev/store";
+import { streamSampleEvents } from "@/lib/mock/events";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
@@ -49,14 +50,18 @@ function useConsoleKeys() {
   }, []);
 }
 
-/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus; `&mock=quiet` = good-day sample. */
+/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus; `&mock=quiet` = good-day sample; `&mock=events` = good day + streamed sample events. */
 function useDeepLink() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     // `?mock=quiet` loads the good-day sample (nothing needs you).
-    if (q.get("mock") === "quiet") useDevStore.getState().loadMock("quiet");
+    const mock = q.get("mock");
+    if (mock === "quiet" || mock === "events") useDevStore.getState().loadMock("quiet");
+    // `?mock=events` then streams sample events into the decision layer (one every ~3.5 s).
+    const stop = mock === "events" ? streamSampleEvents((ev) => useDevStore.getState().apply(ev)) : undefined;
     const want = q.get("focus") ?? q.get("rail");
     if (want && (DOMAINS as readonly string[]).includes(want)) useUmbra.getState().wakeRail(want as DomainId);
+    return stop;
   }, []);
 }
 

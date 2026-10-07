@@ -51,6 +51,9 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [x] Figma integration
 - [x] **NO WakaTime** (explicitly excluded)
 - [x] Dev focus **mockup** (sample data): needs-you list (derived), compact project lines, on-demand terminal with risky-command approval, folded ports, per-project service adapters (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker, Figma; `+ service`), hand-off, dispatch, activity strip, core attention
+- [x] Decision layer (Jev, TypeSafe System One): server-only `/api/decide`, typed client + Noul/Choice/Score builders, local fallback (`jev` | `local`), Needs-you triage (5 atomic questions → priority + placement), `?mock=events` stream, decisions in the activity log
+- [ ] Jev live-tested with a real `TYPESAFE_API_KEY` (built against the documented API; only the local fallback has run so far)
+- [ ] Jev: command routing (⌘K / voice → tool), wire `secondRiskCheck` into held commands, Deadbridge lead scoring, Astro go/no-go
 - [ ] Dev focus on live data: Mac-helper terminal bridge (PTY sessions, agent prompts, lsof) behind the same `DevBridge` interface
 
 ### Homelab + Network
@@ -211,7 +214,7 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 ## 7. Open decisions
 
 - [ ] **Secrets store** — Supabase Vault vs 1Password vs Doppler
-- [ ] **LLM** — provider, models, local vs cloud, cost / privacy stance
+- [ ] **LLM** — provider, models, local vs cloud, cost / privacy stance (talking only; decisions go to Jev)
 - [ ] **Weather source** — for Astro (API TBD)
 - [ ] **Hosting** — Vercel vs Proxmox (or hybrid)
 - [ ] **Cameras / RTSP** — sources, auth, retention

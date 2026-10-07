@@ -33,7 +33,7 @@ Other scripts: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm start`.
 
 `V` / `Shift-V` work under `pnpm dev`; in a production build add `?dev` to the URL.
 
-Deep links for demos: `/?focus=dev` (or `/?rail=dev`) opens the Dev focus; `/?rail=<id>` wakes any rail.
+Deep links for demos: `/?focus=dev` (or `/?rail=dev`) opens the Dev focus (`&mock=quiet` good day, `&mock=events` streamed sample events); `/?rail=<id>` wakes any rail.
 
 ### Dev focus (MOCK)
 
@@ -43,7 +43,7 @@ Everything is SAMPLE data from `src/lib/mock/dev.ts`; nothing runs a process, op
 
 The default view is deliberately short: what needs you, one line per project, everything else one click away. `/?focus=dev&mock=quiet` loads a good-day sample (all quiet).
 
-- **Needs you** (top): only actionable lines, derived from live state (`src/lib/dev/needs.ts`), never hand-listed: an agent waiting on you (inline Approve / Deny), a failed agent (its CI run and Sentry issue fold into the same line; `≈ SAMPLE-7Q` opens the project), a stale port holder (Kill → amber approval → `dev.port.free`), a held terminal command, and any service need (an adapter's attention/broken status, e.g. umbra "6 commits not backed up · no remote"). Nothing pending shows one calm "all quiet" line.
+- **Needs you** (top): triaged by the decision layer (see *Decision layer (Jev)* below). Candidates are derived from live state (`src/lib/dev/needs.ts`), never hand-listed: an agent waiting on you (inline Approve / Deny), a failed agent (its CI run and Sentry issue fold into the same line; `≈ SAMPLE-7Q` opens the project), a stale port holder (Kill → amber approval → `dev.port.free`), a held terminal command, and any service need (an adapter's attention/broken status, e.g. umbra "6 commits not backed up · no remote"). Nothing pending shows one calm "all quiet" line.
 - **Projects**: one line per repo (`src/lib/dev/projects.ts`). Healthy = gray dot + name + tiny summary; only attention/broken services get an amber/red chip. Running agents are a small cyan marker (click → its session); running ports are cyan `:3002` (click → its log); `+` (on hover) attaches an unused adapter. Click a line to open the project on the right: its sessions (agents, dev servers, Diff / Start) and the service cards (GitHub solo view, Sentry ↔ CI, PostHog, Supabase, Docker containers, Figma). `×` on a card detaches it.
 - **Terminal** (on demand): hidden until you pick a need, an agent marker, a session or a server; `✕` hides it again. Plain DOM transcript plus a command line (`help` lists the sample commands, `↑`/`↓` history). Commands with `rm`, `push`, `--force`, `reset --hard`, `kill` or `sudo` are held behind an amber "needs your yes" strip (`y ⏎` approves, `n` / `Esc` denies).
 - **Servers**: one muted `servers · 1 running` line that expands to the port list (Kill / Start, project containers under their dev server). General Docker stays on the Homelab rail.
@@ -64,6 +64,30 @@ Services are adapters in `src/lib/dev/services/`, one file each (`github`, `sent
 
 Nothing else changes: chips, the project drawer and the picker all read from the registry.
 
+### Decision layer (Jev)
+
+Umbra's decisions (what deserves Edward's attention, and later command routing, a second risk check, Deadbridge lead scoring and Astro go/no-go) come from TypeSafe's **Jev** model via the System One API. Jev *decides*; a normal chat LLM will *talk* (not wired yet). Docs: <https://docs.typesafe.ai>.
+
+**Enable it:** put your key in `.env.local` (gitignored; see `.env.example`) and restart `pnpm dev`:
+
+```bash
+TYPESAFE_API_KEY=ts_...
+```
+
+The key is read **only on the server**, in `src/app/api/decide/route.ts`; the browser only ever talks to `/api/decide` and never sees it. `GET /api/decide` returns `{ jev: true|false, model }` so you can check it's picked up. With no key, or when Jev errors or takes longer than 1.5 s, Umbra answers with a deterministic local heuristic instead. Every decision is marked `jev` or `local` (the hover reason and the activity log show which one).
+
+**Needs-you triage.** Each candidate (derived needs + streamed events) gets five atomic questions in one call: `needs_attention` (Noul: look within the hour?), `urgency` (Score, 5 levels: noise → critical), `category` (Choice: act-now / today / fyi / ignore), `self_fixable` (Noul: one reversible action, no decision needed?) and `affects_people` (Noul: visitors, a client, a waiting lead?). Code combines them (`src/lib/decide/triage.ts`, `TRIAGE_POLICY`):
+
+- `priority = 0.35·attention + 0.35·urgency/4 + 0.2·E[category weight] + 0.1·affects_people`; confidence = mean of the score / choice / Noul confidences.
+- **Needs you** if priority ≥ 0.55 or a confident act-now; an agent blocked on your answer always goes there (code rule). Unsure (confidence < 50%) with priority ≥ 0.35 is still shown, with a small `?`.
+- **Project chip** if priority ≥ 0.22 and the event has a repo; otherwise **activity log only**.
+- Needs you shows the top 3 by priority, then `+N more`. Hover a line for the reason, e.g. `jev · urgent 4/5 · 83%`. When `self_fixable` ≥ 60% and the event has a one-action fix, a FIX button holds it behind the usual "needs your yes" strip.
+- Decisions are cached per event id (and server-side for 10 min per identical request), and each one is written to the activity log.
+
+`/?focus=dev&mock=events` loads the quiet sample and streams 10 sample events (CI failed, agent waiting, agent done, container restarting 4×, Sentry spike, new Deadbridge lead, unpushed work, traffic spike, dependabot patch, stale port) about every 3.5 s.
+
+**Code:** `src/lib/decide/` holds `types.ts` (API shapes), `questions.ts` (Noul / Choice / Score builders + confidence math), `jev.ts` (server-only HTTP client), `decide.ts` (server `decide()` with fallback + cache), `tasks.ts` (the only tasks the route accepts: `triage`, `risk`), `client.ts` (browser → `/api/decide`, local fallback), `store.ts` (decision cache + logging) and `risk.ts` (an unwired `secondRiskCheck()` next to the keyword classifier). To add a decision, add a task to `tasks.ts` with `parse`, `build` (state + questions) and `local`.
+
 ### Layout
 
 ```
@@ -72,6 +96,10 @@ src/components/console/  Console shell: top chrome, rails, rail panel, bottom st
 src/components/core/     System core: one R3F canvas (client-only), shaders, SVG label overlay
 src/lib/graph/           Typed graph model (nodes/edges), SAMPLE dataset, deterministic core layout
 src/components/console/devfocus/  Dev focus workspace (needs you, project lines + drawer, on-demand terminal, folded servers / hand-off / dispatch / activity)
+src/lib/decide/          Decision layer (Jev): API types, question builders, server client + decide(), tasks, browser client, triage store
+src/app/api/decide/      Server route for decisions (reads TYPESAFE_API_KEY; the key never reaches the browser)
+src/lib/dev/signals.ts   Dev signals (derived needs + streamed events) the decision layer triages
+src/lib/mock/events.ts   SAMPLE event stream for `?mock=events`
 src/lib/tools/           One tool layer: typed Tool (id, domain, risk, run), stub tools, approval gate
 src/lib/dev/             Dev workspace models + bridge protocol (types.ts), risk classifier, store (reducer over bridge events)
 src/lib/dev/projects.ts  Repos and the services each one uses

@@ -23,6 +23,8 @@ export async function approvePending(): Promise<void> {
   const { wakeRail, setMode, toIdle } = useUmbra.getState();
   const res = await runTool(tool, { source: "touch", approved: true, args: p.args, wakeRail, setMode, toIdle });
   if (!res.ok) dev.log("touch", res.message, "error");
+  // A triaged event fixed with its one action leaves the Needs-you list.
+  else if (p.signalId) useDevStore.setState((s) => ({ signals: s.signals.filter((x) => x.id !== p.signalId) }));
 }
 
 export const denyPending = () => useDevStore.getState().denyPending();
