@@ -4,10 +4,14 @@ import { basename } from "node:path";
 import { ghState, latestRun, openPrCount, type GhState } from "./ci.js";
 import { audit } from "./audit.js";
 import { projectPath, type HelperConfig, type ProjectConfig } from "./config.js";
+import { accentOf } from "./colors.js";
 import { readGit, type GitState } from "./git.js";
 import { Herdr, HerdrError, approvalKeys, lastLines, questionLine, type HAgent, type HPane, type HSnapshot, type HerdrStatus } from "./herdr.js";
 import { Approvals, riskOf } from "./policy.js";
 import { agentKindOf, cwdsOf, descendsFrom, isDevLike, listListeners, listProcs, shortCommand, type Proc } from "./procs.js";
+import { activateApp, Jumps, openInCursor, terminalApp, type JumpTarget } from "./jumps.js";
+import { notifierName } from "./notify.js";
+import { Pings, type AgentObs, type ServerObs } from "./pings.js";
 import { deriveProjects } from "./projects.js";
 import type { AgentSession, AgentState, CiRun, DevServer, Handoff, HelperEvent, ProjectInfo, RecentProject, Snapshot, TermLine, TermSession, WireRequest } from "./protocol.js";
 import { SessionManager, kindOf, type PtyMode } from "./sessions.js";
@@ -48,6 +52,12 @@ export class Helper {
   readonly sessions: SessionManager;
   readonly approvals = new Approvals();
   readonly herdr: Herdr;
+  readonly jumps = new Jumps();
+  readonly pings: Pings;
+  /** pid → when Umbra killed it; pane → when Umbra sent it ctrl+c (a server stopping then is expected). */
+  private killed = new Map<number, number>();
+  private interrupted = new Map<string, number>();
+  private rescanTimer: NodeJS.Timeout | null = null;
   private hsnap: HSnapshot | null = null;
   private herdrFails = 0;
   private herdrBusy = false;
@@ -79,6 +89,14 @@ export class Helper {
   ) {
     this.sessions = new SessionManager(ptyMode.mode, (ev) => this.emit(ev));
     this.herdr = new Herdr(config.herdr);
+    this.pings = new Pings(config.pings, this.jumps, this.baseUrl, {
+      onPing: (p) => this.notice(`ping · ${p.title} · ${p.message}`, "info"),
+      serverExitExpected: (s) => this.serverExitExpected(s),
+    });
+  }
+
+  get baseUrl() {
+    return `http://${this.config.host === "::1" ? "[::1]" : this.config.host}:${this.config.port}`;
   }
 
   /* --- events --------------------------------------------------------------- */
@@ -112,6 +130,7 @@ export class Helper {
       herdr: this.herdr.mode === "off" ? `off · ${this.herdr.note}` : this.herdr.note,
       projects: this.projects.length,
       agents: this.agents.size,
+      pings: this.config.pings.enabled ? notifierName(this.config.pings.notifier) : "off",
     };
   }
 
@@ -325,9 +344,30 @@ export class Helper {
     return this.hsnap?.workspaces.find((w) => w.workspace_id === id)?.label ?? id;
   }
 
+  /**
+   * Agents of one project that sit in different Herdr workspaces (Edward keeps
+   * two parallax ones open) get "ws N" labels; two of the same kind in one
+   * workspace add the pane.
+   */
+  private agentLabels(snap: HSnapshot): Map<string, string | undefined> {
+    const repoOf = (a: HAgent) => this.repoOf(a.foreground_cwd ?? a.cwd) ?? this.repoOf(a.cwd);
+    const wsNum = (id: string) => snap.workspaces.find((w) => w.workspace_id === id)?.number;
+    const out = new Map<string, string | undefined>();
+    for (const a of snap.agents) {
+      const repo = repoOf(a);
+      const p = repo ? this.project(repo) : undefined;
+      const twin = snap.agents.some((b) => b !== a && b.workspace_id === a.workspace_id && b.agent === a.agent && repoOf(b) === repo);
+      const parts = [p && p.workspaces.length > 1 ? `ws ${wsNum(a.workspace_id) ?? a.workspace_id}` : "", twin ? a.pane_id.split(":")[1] : ""].filter(Boolean);
+      out.set(a.pane_id, parts.join(" ") || undefined);
+    }
+    return out;
+  }
+
   private async syncAgents(snap: HSnapshot) {
     const now = Date.now();
     const live = new Set<string>();
+    const labels = this.agentLabels(snap);
+    const obs: AgentObs[] = [];
     for (const a of snap.agents) {
       const id = `h-${a.pane_id}`;
       live.add(id);
@@ -354,6 +394,7 @@ export class Helper {
         sessionId: `pane:${a.pane_id}`,
         prompt,
         managed: true,
+        where: labels.get(a.pane_id),
         note: `herdr · ${this.wsLabel(a.workspace_id)} · ${a.pane_id}${a.agent_status === "unknown" ? " · status unknown" : ""}`,
       };
       if (!prev || JSON.stringify(prev.agent) !== JSON.stringify(agent)) {
@@ -361,7 +402,9 @@ export class Helper {
         this.emit({ type: "agent.upsert", agent });
         if (prev && prev.agent.state !== "waiting" && state === "waiting") console.log(`[herdr] ${a.pane_id} ${a.agent} blocked · ${prompt?.title ?? ""}`);
       }
+      obs.push({ pane: a.pane_id, repo, agent: agent.agent, where: agent.where, status: a.agent_status, seq, completion: a.completion_seq ?? null, question: prompt?.title, task });
     }
+    this.pings.agents(obs);
     for (const [id] of this.agents) {
       if (live.has(id)) continue;
       this.agents.delete(id);
@@ -501,6 +544,12 @@ export class Helper {
 
   async scanAllGit() {
     await Promise.all(this.projects.map((p) => this.scanGit(p)));
+    this.pings.staleWork(
+      this.projects.flatMap((p) => {
+        const g = this.git.get(p.repo);
+        return g ? [{ repo: p.repo, dir: p.dir, remote: g.payload.remote, uncommitted: g.payload.uncommitted, idleSince: g.activityAt, ahead: g.payload.ahead, oldestUnpushedAt: g.payload.oldestUnpushedAt }] : [];
+      }),
+    );
   }
 
   private async scanGit(p: Project) {
@@ -523,6 +572,7 @@ export class Helper {
         const prev = this.ci.get(p.repo);
         this.ci.set(p.repo, runInfo);
         if (!prev || JSON.stringify(prev) !== JSON.stringify(runInfo)) this.emit({ type: "ci.upsert", run: runInfo });
+        this.pings.ci(runInfo, p.dir);
       }
       if (prs !== null && prs !== this.prs.get(p.repo)) {
         this.prs.set(p.repo, prs);
@@ -635,6 +685,7 @@ export class Helper {
         this.servers = servers;
         this.emit({ type: "servers.set", servers });
       }
+      this.watchServers(servers);
       this.syncExternalAgents(agentProcs, cwd, now);
     } catch (e) {
       console.error("[procs]", (e as Error).message);
@@ -692,6 +743,103 @@ export class Helper {
     }
   }
 
+  /* --- pings + jumps ------------------------------------------------------------------ */
+
+  /** Project servers that are listening → pings; a vanished one gets a quick extra scan after the grace period. */
+  private watchServers(servers: DevServer[]) {
+    const obs: ServerObs[] = servers.flatMap((s) => {
+      const p = s.repo ? this.project(s.repo) : undefined;
+      // Every listener counts (a server turning "stale" mustn't look like it vanished); "stopped" rows aren't listening.
+      return p && s.state !== "stopped" ? [{ port: s.port, repo: p.repo, dir: p.dir, pid: s.pid, command: s.command, sessionId: s.sessionId }] : [];
+    });
+    const old = Date.now() - 120_000;
+    for (const m of [this.killed, this.interrupted] as Map<unknown, number>[]) for (const [k, at] of m) if (at < old) m.delete(k);
+    const wait = this.pings.servers(obs);
+    if (wait !== null && !this.rescanTimer) {
+      this.rescanTimer = setTimeout(() => {
+        this.rescanTimer = null;
+        void this.scanProcs();
+      }, wait + 250);
+    }
+  }
+
+  /** A server stopping is expected when Umbra stopped it, its project or pane closed, or its pane shows a ctrl+c. */
+  private async serverExitExpected(s: ServerObs): Promise<string | null> {
+    const recent = (at?: number) => !!at && Date.now() - at < 120_000;
+    if (s.pid && recent(this.killed.get(s.pid))) return "killed from Umbra";
+    if (!this.project(s.repo)) return "project closed";
+    if (this.herdr.mode === "off" || !this.hsnap) return null;
+    const pane = s.sessionId ? paneOf(s.sessionId) : null;
+    if (pane && !this.hsnap.panes.some((p) => p.pane_id === pane)) return "pane closed";
+    if (pane && recent(this.interrupted.get(pane))) return "ctrl+c from Umbra";
+    // The pane that ran it (or, if unknown, the project's plain panes): a ^C in the last lines = stopped by hand.
+    const panes = pane ? [pane] : this.hsnap.panes.filter((p) => !p.agent && this.repoOf(p.foreground_cwd ?? p.cwd) === s.repo).map((p) => p.pane_id);
+    for (const id of panes.slice(0, 6)) {
+      try {
+        if (lastLines(await this.herdr.read(id, 40, "recent_unwrapped"), 6).some((l) => /\^C/.test(l))) return `ctrl+c in ${id}`;
+      } catch {
+        /* unreadable pane: no evidence either way */
+      }
+    }
+    return null;
+  }
+
+  /** `pnpm helper --test-ping`: one sample ping whose link opens umbra in Cursor. */
+  async testPing() {
+    const p = this.project("umbra");
+    const dir = p?.dir ?? projectPath(this.config, { repo: "umbra" });
+    return this.pings.send({
+      kind: "test",
+      key: `test:${Date.now()}`,
+      subject: "test",
+      repo: "umbra",
+      title: `${accentOf("umbra").emoji} umbra · test ping`,
+      message: "click to open umbra in Cursor",
+      reason: "pnpm helper --test-ping",
+      target: { kind: "cursor", dir, label: "umbra" },
+    });
+  }
+
+  /**
+   * Carry out one jump (from a link or the app). Fixed kinds only: focus a Herdr
+   * pane + raise the terminal app, open a project in Cursor, or a redirect.
+   */
+  async jump(t: JumpTarget, via: string): Promise<{ ok: boolean; text: string; redirect?: string }> {
+    const log = (ok: boolean, text: string, extra: Record<string, unknown> = {}) => {
+      audit({ action: "jump", result: ok ? "ok" : "error", via, kind: t.kind, ...extra, text });
+      return { ok, text };
+    };
+    switch (t.kind) {
+      case "localhost": {
+        const url = `http://localhost:${t.port}/`;
+        audit({ action: "jump", result: "ok", via, kind: t.kind, redirect: url });
+        return { ok: true, text: `opening localhost:${t.port}`, redirect: url };
+      }
+      case "url":
+        audit({ action: "jump", result: "ok", via, kind: t.kind, redirect: t.url });
+        return { ok: true, text: "opening GitHub", redirect: t.url };
+      case "cursor": {
+        if (!existsSync(t.dir)) return log(false, `${t.label} isn't at ${t.dir} anymore`, { dir: t.dir });
+        const r = await openInCursor(t.dir);
+        return log(r.ok, r.ok ? `opened ${t.label} in Cursor` : `couldn't open Cursor · ${r.why}`, { dir: t.dir, cmd: r.cmd });
+      }
+      case "herdr": {
+        if (this.herdr.mode === "off") return log(false, "herdr isn't connected", { pane: t.paneId });
+        const pane = this.hsnap?.panes.find((p) => p.pane_id === t.paneId);
+        if (this.hsnap && !pane) return log(false, `${t.label} · that Herdr pane is gone`, { pane: t.paneId });
+        try {
+          await this.herdr.focus(t.paneId, this.isAgentPane(t.paneId), pane?.tab_id);
+        } catch (e) {
+          return log(false, `herdr refused focus · ${(e as Error).message}`, { pane: t.paneId });
+        }
+        const app = await terminalApp(this.config.jumpTerminalApp);
+        const r = await activateApp(app);
+        this.kickHerdr(300);
+        return log(true, `focused ${t.label} in Herdr${r.ok ? ` · ${app} to the front` : ` · couldn't raise ${app}`}`, { pane: t.paneId, app, cmd: r.cmd });
+      }
+    }
+  }
+
   /* --- requests --------------------------------------------------------------------- */
 
   async handle(req: WireRequest, origin: string): Promise<void> {
@@ -729,6 +877,7 @@ export class Helper {
           const agent = this.agentOn(pane);
           try {
             if (cmd === "^C") {
+              this.interrupted.set(pane, Date.now());
               if (agent) await this.herdr.agentKeys(pane, ["ctrl+c"]);
               else await this.herdr.paneKeys(pane, ["ctrl+c"]);
             } else if (agent) {
@@ -836,6 +985,7 @@ export class Helper {
           this.notice(`kill ${req.pid} refused · not a dev process the helper is showing`, "denied");
           return done("refused", { why: "unknown pid" });
         }
+        this.killed.set(req.pid, Date.now());
         try {
           process.kill(req.pid, "SIGTERM");
         } catch (e) {
@@ -896,6 +1046,24 @@ export class Helper {
         });
         return done("ok");
       }
+      case "jump": {
+        let target: JumpTarget | null = null;
+        if (req.kind === "herdr") {
+          const pane = paneOf(req.sessionId);
+          const a = pane ? [...this.agents.values()].find((x) => x.agent.sessionId === req.sessionId)?.agent : undefined;
+          if (pane) target = { kind: "herdr", paneId: pane, label: a ? `${a.repo} · ${a.agent}${a.where ? ` (${a.where})` : ""}` : (this.paneSessions.get(req.sessionId)?.title ?? pane) };
+        } else {
+          const p = this.project(req.repo);
+          if (p) target = { kind: "cursor", dir: p.dir, label: p.repo };
+        }
+        if (!target) {
+          this.notice(req.kind === "herdr" ? "not a Herdr pane" : `unknown project ${req.repo}`, "error");
+          return done("error", { why: "no target" });
+        }
+        const r = await this.jump(target, `app ${origin}`);
+        this.notice(r.text, r.ok ? "ok" : "error");
+        return;
+      }
       case "sessions.resume":
         this.notice(this.herdr.mode !== "off" ? "agents live in Herdr · nothing to resume" : "helper sessions persist · nothing to resume", "info");
         return done("ok");
@@ -951,6 +1119,8 @@ function summary(req: WireRequest): Record<string, unknown> {
       return { serverId: req.serverId };
     case "pane.focus":
       return { sessionId: req.sessionId };
+    case "jump":
+      return req.kind === "herdr" ? { kind: req.kind, sessionId: req.sessionId } : { kind: req.kind, repo: req.repo };
     case "tests.run":
     case "session.start":
       return { repo: req.repo };

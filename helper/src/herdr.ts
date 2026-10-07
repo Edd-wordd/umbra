@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
-import { BIN_DIRS, run } from "./exec.js";
+import { findBin, run } from "./exec.js";
 
 /**
  * Herdr client (terminal workspace manager for coding agents, protocol 22).
@@ -84,12 +84,6 @@ export interface HerdrConfig {
 
 type Envelope = { id?: string; result?: Record<string, unknown>; error?: { code: string; message: string } };
 
-const findBin = (bin: string) => {
-  if (bin.includes("/")) return bin;
-  const home = process.env.HOME ?? "";
-  for (const d of [`${home}/.local/bin`, ...BIN_DIRS]) if (existsSync(`${d}/${bin}`)) return `${d}/${bin}`;
-  return bin;
-};
 
 let reqSeq = 0;
 
@@ -168,7 +162,7 @@ export class Herdr {
   private bin: string;
 
   constructor(private cfg: HerdrConfig) {
-    this.bin = findBin(cfg.bin);
+    this.bin = findBin(cfg.bin) ?? cfg.bin;
   }
 
   async init(): Promise<void> {

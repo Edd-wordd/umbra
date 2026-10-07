@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 
 export interface RunResult {
   ok: boolean;
@@ -24,3 +25,16 @@ export function run(file: string, args: string[], opts: { cwd?: string; timeoutM
 
 /** Resolve a binary from common macOS/Linux locations when PATH is minimal (launchd). */
 export const BIN_DIRS = ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+
+/**
+ * Absolute path of a binary: PATH, then ~/.local/bin and the usual macOS dirs
+ * (Intel Homebrew /usr/local/bin, Apple Silicon /opt/homebrew/bin), since a
+ * launchd PATH is bare. null when it isn't installed anywhere we look.
+ */
+export function findBin(bin: string): string | null {
+  if (bin.includes("/")) return existsSync(bin) ? bin : null;
+  const home = process.env.HOME ?? "";
+  const dirs = [...(process.env.PATH ?? "").split(":"), `${home}/.local/bin`, ...BIN_DIRS].filter(Boolean);
+  for (const d of new Set(dirs)) if (existsSync(`${d}/${bin}`)) return `${d}/${bin}`;
+  return null;
+}

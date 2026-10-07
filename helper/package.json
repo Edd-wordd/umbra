@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc -p .",
     "start": "tsc -p . && node dist/main.js",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "test": "tsc -p . && node test/pings.test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.3"

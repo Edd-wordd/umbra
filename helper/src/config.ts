@@ -32,6 +32,35 @@ export interface AgentCommand {
   args?: string[];
 }
 
+/** Native Mac pings (see src/pings.ts). Each trigger can be switched off on its own. */
+export interface PingsConfig {
+  /** Master switch. */
+  enabled: boolean;
+  /** A Herdr agent goes `blocked` (waiting on you) → jump to its pane. */
+  agentBlocked: boolean;
+  /** A Herdr agent finishes (working → done, or idle with completion_seq advancing) → jump to its pane. */
+  agentDone: boolean;
+  /** A project's dev server stops listening unexpectedly → localhost if it came back, else the project in Cursor. */
+  serverDied: boolean;
+  /** CI fails on a repo's latest run → the GitHub run page. */
+  ciFailed: boolean;
+  /** Uncommitted or unpushed work older than `staleWorkDays` → at most one ping a day. */
+  staleWork: boolean;
+  staleWorkDays: number;
+  /** The same thing (same agent, same port, same repo's CI) pings at most once per cooldown. */
+  cooldownMinutes: number;
+  /** After a server vanishes, wait this long to see whether it comes back. */
+  serverGraceSeconds: number;
+  /** Ignore listeners that lived less than this (test runners, one-off builds). */
+  serverMinUpSeconds: number;
+  /** Local time "HH:MM"; wraps past midnight. Pings inside are recorded but not shown. */
+  quietHours: { enabled: boolean; start: string; end: string };
+  /** auto = terminal-notifier if installed (clickable), else osascript. */
+  notifier: "auto" | "terminal-notifier" | "osascript" | "off";
+  /** macOS sound name ("" = silent). */
+  sound: string;
+}
+
 export interface HelperConfig {
   host: string;
   port: number;
@@ -54,6 +83,9 @@ export interface HelperConfig {
   recentHours: number;
   /** Listening ports never shown (databases, Docker, other apps' local servers). */
   ignorePorts: number[];
+  pings: PingsConfig;
+  /** App a Herdr jump brings to the front ("auto" = Ghostty if installed, else Terminal). */
+  jumpTerminalApp: string;
 }
 
 export const HELPER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -89,6 +121,22 @@ export function defaultConfig(token: string): HelperConfig {
     staleBranchDays: 14,
     recentHours: 12,
     ignorePorts: [],
+    pings: {
+      enabled: true,
+      agentBlocked: true,
+      agentDone: true,
+      serverDied: true,
+      ciFailed: true,
+      staleWork: false,
+      staleWorkDays: 3,
+      cooldownMinutes: 5,
+      serverGraceSeconds: 20,
+      serverMinUpSeconds: 60,
+      quietHours: { enabled: false, start: "22:00", end: "08:00" },
+      notifier: "auto",
+      sound: "Glass",
+    },
+    jumpTerminalApp: "auto",
   };
 }
 
@@ -117,6 +165,7 @@ export function loadConfig(): LoadedConfig {
     ...raw,
     herdr: { ...base.herdr, ...raw.herdr },
     poll: { ...base.poll, ...raw.poll },
+    pings: { ...base.pings, ...raw.pings, quietHours: { ...base.pings.quietHours, ...raw.pings?.quietHours } },
     agents: raw.agents ?? base.agents,
   };
   if (!config.token || config.token.length < 24) {

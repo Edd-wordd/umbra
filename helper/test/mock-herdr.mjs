@@ -10,7 +10,7 @@
  * Supports: ping, session.snapshot, pane.read, agent.read, agent.send_keys,
  * agent.prompt, agent.focus, pane.focus, tab.focus, pane.send_input, pane.send_text,
  * pane.send_keys, pane.process_info, events.subscribe; and test controls:
- * mock.set_status {pane_id, status, screen?}, mock.close_workspace {workspace_id},
+ * mock.set_status {pane_id, status, screen?, completed?}, mock.close_workspace {workspace_id},
  * mock.reopen_workspace {workspace_id}, mock.log.
  */
 import { readFileSync, rmSync, existsSync } from "node:fs";
@@ -63,14 +63,18 @@ function emit(event, data) {
   }
 }
 
-function setStatus(pane, status, screen) {
+/**
+ * Like Herdr: every transition bumps state_change_seq; completion_seq is the seq
+ * of an idle transition that completed work (done, or idle with `completed`), else null.
+ */
+function setStatus(pane, status, screen, completed = false) {
   const a = agentOf(pane);
   const p = paneOf(pane);
   if (!a || !p) throw err("pane_not_found", `no agent in ${pane}`);
   a.agent_status = p.agent_status = status;
   a.state_change_seq = (a.state_change_seq ?? 0) + 1;
   a.revision = p.revision = (a.revision ?? 0) + 1;
-  if (status === "done") a.completion_seq = (a.completion_seq ?? 0) + 1;
+  a.completion_seq = status === "done" || (status === "idle" && completed) ? a.state_change_seq : null;
   if (screen) push(pane, ...screen.split("\n"));
   const ws = snap.workspaces.find((w) => w.workspace_id === a.workspace_id);
   if (ws) ws.agent_status = snap.agents.filter((x) => x.workspace_id === ws.workspace_id).map((x) => x.agent_status).sort((x, y) => RANK[y] - RANK[x])[0] ?? "unknown";
@@ -163,7 +167,7 @@ function handle(method, params = {}) {
       return { type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: pid ?? null, foreground_process_group_id: pid ?? null, foreground_processes: [], tty: null } };
     }
     case "mock.set_status":
-      setStatus(params.pane_id, params.status, params.screen);
+      setStatus(params.pane_id, params.status, params.screen, params.completed);
       return { type: "ok" };
     case "mock.close_workspace": {
       const id = params.workspace_id;

@@ -33,6 +33,8 @@ export interface AgentSession {
   managed?: boolean;
   pid?: number;
   note?: string;
+  /** Tells apart agents of one project in different Herdr workspaces ("ws 1" / "ws 6"). */
+  where?: string;
 }
 
 export type TermLineKind = "cmd" | "out" | "dim" | "ok" | "warn" | "err" | "sys";
@@ -159,6 +161,9 @@ export type HelperRequest =
   /** Stream a session's output while the UI shows it (Herdr panes are read on demand). */
   | { type: "term.watch"; sessionId: string; on: boolean }
   /** Jump to that pane in Herdr. */
-  | { type: "pane.focus"; sessionId: string };
+  | { type: "pane.focus"; sessionId: string }
+  /** Jump buttons: Herdr pane (focus + raise the terminal app) or the project in Cursor. */
+  | { type: "jump"; kind: "herdr"; sessionId: string }
+  | { type: "jump"; kind: "cursor"; repo: RepoId };
 
 export type WireRequest = HelperRequest & { approvalId?: string };

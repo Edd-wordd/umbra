@@ -30,5 +30,21 @@
   "pty": "auto",
   "staleBranchDays": 14,
   "recentHours": 12,
-  "ignorePorts": [5432, 6379]
+  "ignorePorts": [5432, 6379],
+  "pings": {
+    "enabled": true,
+    "agentBlocked": true,
+    "agentDone": true,
+    "serverDied": true,
+    "ciFailed": true,
+    "staleWork": false,
+    "staleWorkDays": 3,
+    "cooldownMinutes": 5,
+    "serverGraceSeconds": 20,
+    "serverMinUpSeconds": 60,
+    "quietHours": { "enabled": false, "start": "22:00", "end": "08:00" },
+    "notifier": "auto",
+    "sound": "Glass"
+  },
+  "jumpTerminalApp": "auto"
 }
