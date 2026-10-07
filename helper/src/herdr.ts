@@ -6,7 +6,7 @@ import { BIN_DIRS, run } from "./exec.js";
  * Herdr client (terminal workspace manager for coding agents, protocol 22).
  *
  * Two transports with the same calls:
- *  - socket: newline-delimited JSON on ~/.config/herdr/herdr.sock
+ *  - socket: newline-delimited JSON on ~/.config/herdr/herdr.sock, one request per connection
  *            → {id, method, params}  ← {id, result} | {id, error:{code,message}}
  *            plus a second connection for `events.subscribe`.
  *  - cli:    the `herdr` binary (prints the same {id, result} envelopes).
@@ -93,75 +93,69 @@ const findBin = (bin: string) => {
 
 let reqSeq = 0;
 
-/** One NDJSON request/response connection (reconnects lazily). */
+/**
+ * NDJSON request/response over the Herdr socket. Real Herdr (0.9.3, protocol 22)
+ * answers exactly one request per connection and then ends it, so every call
+ * opens its own short-lived connection (parallel calls are fine).
+ */
 class SocketTransport {
-  private sock: Socket | null = null;
-  private buf = "";
-  private pending = new Map<string, { resolve: (e: Envelope) => void; timer: NodeJS.Timeout }>();
+  private open = new Set<Socket>();
 
   constructor(private path: string) {}
 
-  private connect(): Promise<Socket> {
-    if (this.sock && !this.sock.destroyed) return Promise.resolve(this.sock);
-    return new Promise((resolve, reject) => {
-      const s = createConnection(this.path);
-      s.setEncoding("utf8");
-      s.once("connect", () => {
-        this.sock = s;
-        resolve(s);
-      });
-      s.once("error", (e) => {
-        this.sock = null;
-        reject(e);
-      });
-      s.on("data", (d: string) => this.onData(d));
-      s.on("close", () => {
-        this.sock = null;
-        for (const [id, p] of this.pending) {
-          clearTimeout(p.timer);
-          p.resolve({ id, error: { code: "socket_closed", message: "herdr socket closed" } });
-        }
-        this.pending.clear();
-      });
-    });
-  }
-
-  private onData(d: string) {
-    this.buf += d;
-    let i: number;
-    while ((i = this.buf.indexOf("\n")) >= 0) {
-      const line = this.buf.slice(0, i).trim();
-      this.buf = this.buf.slice(i + 1);
-      if (!line) continue;
-      try {
-        const env = JSON.parse(line) as Envelope;
-        const p = env.id ? this.pending.get(env.id) : undefined;
-        if (p && env.id) {
-          clearTimeout(p.timer);
-          this.pending.delete(env.id);
-          p.resolve(env);
-        }
-      } catch {
-        /* ignore non-JSON */
-      }
-    }
-  }
-
-  async call(method: string, params: Record<string, unknown>, timeoutMs = 5000): Promise<Envelope> {
-    const s = await this.connect();
+  call(method: string, params: Record<string, unknown>, timeoutMs = 5000): Promise<Envelope> {
     const id = `umbra:${++reqSeq}`;
     return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        resolve({ id, error: { code: "timeout", message: `${method} timed out` } });
-      }, timeoutMs);
-      this.pending.set(id, { resolve, timer });
-      s.write(JSON.stringify({ id, method, params }) + "\n");
+      let done = false;
+      let buf = "";
+      const s = createConnection(this.path);
+      this.open.add(s);
+      const finish = (env: Envelope) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        this.open.delete(s);
+        s.destroy();
+        resolve(env);
+      };
+      const timer = setTimeout(() => finish({ id, error: { code: "timeout", message: `${method} timed out` } }), timeoutMs);
+      s.setEncoding("utf8");
+      s.once("connect", () => s.write(JSON.stringify({ id, method, params }) + "\n"));
+      s.on("data", (d: string) => {
+        buf += d;
+        let i: number;
+        while ((i = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          if (!line) continue;
+          try {
+            const env = JSON.parse(line) as Envelope;
+            if (env.id === id) return finish(env);
+          } catch {
+            /* ignore non-JSON */
+          }
+        }
+      });
+      s.on("end", () => {
+        // A reply without a trailing newline still counts.
+        const line = buf.trim();
+        if (line) {
+          try {
+            const env = JSON.parse(line) as Envelope;
+            if (env.id === id) return finish(env);
+          } catch {
+            /* fall through */
+          }
+        }
+        finish({ id, error: { code: "socket_closed", message: "herdr closed the connection without a reply" } });
+      });
+      s.on("error", (e) => finish({ id, error: { code: "socket_error", message: e.message } }));
     });
   }
 
   close() {
-    this.sock?.destroy();
+    for (const s of this.open) s.destroy();
+    this.open.clear();
   }
 }
 

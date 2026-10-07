@@ -213,8 +213,13 @@ const server = createServer((sock) => {
       }
       try {
         sock.write(JSON.stringify({ id: req.id, result: handle(req.method, req.params) }) + "\n");
+        // Like real Herdr 0.9.3: one request per connection, then the server ends it.
+        sock.end();
+        return;
       } catch (e) {
         sock.write(JSON.stringify({ id: req.id, error: { code: e.code ?? "internal", message: e.message } }) + "\n");
+        sock.end();
+        return;
       }
     }
   });
