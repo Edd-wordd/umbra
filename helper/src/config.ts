@@ -19,7 +19,7 @@ export interface ProjectConfig {
   repo: string;
   /** … or an explicit path (absolute, ~/…, or relative to projectsRoot). */
   path?: string;
-  /** Service adapters shown for this project (ids from src/lib/dev/services). Default: ["github"]. */
+  /** Services the helper collects for this project (only "github" = git + CI today). Default: ["github"]. */
   services?: string[];
   /** How to start its dev server from Umbra (START shows while nothing listens on that port). */
   dev?: { command: string; port: number };

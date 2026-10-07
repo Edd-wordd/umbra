@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
-import { streamSampleEvents } from "@/lib/mock/events";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
@@ -51,29 +50,19 @@ function useConsoleKeys() {
   }, []);
 }
 
-/** Demo deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus; `&mock=quiet` = good-day sample; `&mock=events` = good day + streamed sample events. */
+/** Deep links: `/?rail=<id>` wakes a rail; `/?focus=dev` opens the Dev focus. */
 function useDeepLink() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    // `?mock=quiet` loads the good-day sample (nothing needs you).
-    const mock = q.get("mock");
-    if (mock === "quiet" || mock === "events") useDevStore.getState().loadMock("quiet");
-    // `?mock=events` then streams sample events into the decision layer (one every ~3.5 s).
-    const stop = mock === "events" ? streamSampleEvents((ev) => useDevStore.getState().apply(ev)) : undefined;
     const want = q.get("focus") ?? q.get("rail");
     if (want && (DOMAINS as readonly string[]).includes(want)) useUmbra.getState().wakeRail(want as DomainId);
-    return stop;
   }, []);
 }
 
-/**
- * Live data from the Mac helper when it's configured and running (else sample
- * data stays). `?mock=…` or `?helper=off` keeps the sample world for demos.
- */
+/** Live Dev data from the Mac helper. `?helper=off` skips it (the Dev view then shows how to start it). */
 function useLiveBridge() {
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.has("mock") || q.get("helper") === "off") return;
+    if (new URLSearchParams(window.location.search).get("helper") === "off") return useDevStore.getState().setHelper({ state: "off" });
     return connectHelper();
   }, []);
 }

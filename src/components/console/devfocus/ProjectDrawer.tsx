@@ -1,194 +1,119 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useDevStore } from "@/lib/dev/store";
-import type { DevProject } from "@/lib/dev/projects";
-import { AGENT_TONE, SERVER_TONE } from "@/lib/dev/format";
-import { STATUS_TONE } from "@/lib/dev/services";
-import { runServiceAction } from "./approval";
-import { AccentBar, Btn, Dot, LocalLink, SectionHead, Spark, TEXT_TONE } from "./ui";
-import { useServiceViews, type ServiceItem } from "./useServiceViews";
+import { AGENT_TONE, AGENT_WORD, CI_TONE, formatAge } from "@/lib/dev/format";
+import type { AgentSession } from "@/lib/dev/types";
+import { useMinuteClock } from "@/lib/hooks/useClock";
+import { agentLabel, gitLong, isListening } from "./project";
+import { AccentDot, Dot, Jump, LocalLink, SectionHead, TEXT_TONE } from "./ui";
 
-function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
-  const { adapter, view } = item;
-  const detach = useDevStore((s) => s.detachService);
-  const tone = STATUS_TONE[view.status];
+function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className={`@container min-w-0 border-t border-line pt-[8px] ${view.wide ? "col-span-2" : ""}`} data-service={adapter.id}>
-      <div className="flex h-[16px] items-center gap-[8px] text-[10px] leading-none">
-        <Dot tone={tone} />
-        <span className="shrink-0 tracking-[1px] text-ink">{adapter.label}</span>
-        <span className={`min-w-0 truncate ${view.status === "ok" || view.status === "idle" ? "text-dim" : TEXT_TONE[tone]}`} title={view.summary}>{view.summary}</span>
-        {view.spark && (
-          <span className="hidden shrink-0 @[260px]:inline-flex">
-            <Spark values={view.spark} tone={tone} width={56} />
-          </span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-[2px]">
-          {view.actions?.map((a) => (
-            <Btn key={a.label} tone="quiet" onClick={() => void runServiceAction(a.toolId, a.args)} title={`${a.label} · ${a.toolId}`}>
-              {!view.wide && a.label.endsWith("↗") ? "↗" : a.label}
-            </Btn>
-          ))}
-          <Btn tone="quiet" onClick={() => detach(repo, adapter.id)} title={`detach ${adapter.label} from ${repo}`}>
-            ×
-          </Btn>
-        </span>
-      </div>
-      <dl className={`mt-[5px] pl-[13px] text-[10px] leading-[17px] ${view.columns === 2 ? "grid grid-cols-2 gap-x-[22px]" : ""}`}>
-        {view.rows.map((r, i) => (
-          <div key={`${r.k}-${i}`} className="flex min-w-0 gap-[10px]">
-            <dt className="w-[78px] shrink-0 truncate text-dim">{r.k}</dt>
-            <dd className={`min-w-0 truncate ${r.tone ? TEXT_TONE[r.tone] : "text-mid"}`} title={r.v}>
-              {r.v}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      {view.excerpt && (
-        <pre className="relative ml-[13px] mt-[6px] overflow-x-auto border border-line bg-black/35 py-[6px] pl-[12px] pr-[10px] text-[10px] leading-[16px] text-mid">
-          <span className="absolute -left-px top-[-1px] bottom-[-1px] w-px bg-broken/70" />
-          {view.excerpt.map((l, i) => (
-            <div key={i} className={i === 0 ? "text-broken/90" : i === view.excerpt!.length - 1 ? "text-dim" : ""}>
-              {l}
-            </div>
-          ))}
-        </pre>
-      )}
+    <div className="border-t border-line pt-[10px]">
+      <SectionHead title={title} />
+      <div className="mt-[6px] text-[10.5px] leading-[20px]">{children}</div>
     </div>
   );
 }
 
-/** The project's agents and dev servers: click one to open its terminal above. */
-function Sessions({ repo }: { repo: string }) {
-  const agents = useDevStore((s) => s.agents);
-  const servers = useDevStore((s) => s.servers);
-  const selectedId = useDevStore((s) => s.selectedId);
-  const select = useDevStore((s) => s.select);
-  const reviewDiff = useDevStore((s) => s.reviewDiff);
-  const start = useDevStore((s) => s.startServer);
-  const live = useDevStore((s) => s.bridgeMode === "live");
-  const sessions = useDevStore((s) => s.sessions);
-  const startShell = useDevStore((s) => s.startShell);
-  const path = useDevStore((s) => s.projects.find((p) => p.repo === repo)?.path ?? "");
-  const mine = agents.filter((a) => a.repo === repo);
-  const srv = servers.filter((s) => s.repo === repo);
-  // Live: the other terminals in this project (Herdr panes, helper shells), not already shown as an agent or server.
-  const taken = new Set([...mine.map((a) => a.sessionId), ...srv.flatMap((s) => (s.sessionId ? [s.sessionId] : []))]);
-  const others = live && path ? Object.values(sessions).filter((t) => !taken.has(t.id) && t.managed !== false && (t.cwd === path || t.cwd.startsWith(path + "/"))) : [];
-  if (!mine.length && !srv.length && !others.length && !live) return null;
-  const tag = (id: string, sel: boolean, onClick: () => void, children: React.ReactNode) => (
-    <button
-      key={id}
-      type="button"
-      onClick={onClick}
-      className={`flex h-[20px] items-center gap-[6px] border px-[7px] text-[9.5px] transition-colors ${
-        sel ? "border-line-strong bg-panel-raised text-ink" : "border-line text-mid hover:border-line-strong hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
-  );
-  return (
-    <div className="mt-[8px] flex flex-wrap items-center gap-[6px]" data-sessions={repo}>
-      <span className="mr-[4px] text-[9.5px] text-dim">sessions</span>
-      {mine.map((a) =>
-        tag(a.id, a.sessionId === selectedId, () => select(a.sessionId), (
-          <>
-            <Dot tone={AGENT_TONE[a.state]} pulse={a.state === "running"} />
-            {a.agent}
-            {a.where && <span className="text-dim">{a.where}</span>} {a.state}
-            {a.state === "done" && a.diff && <span className="text-dim">+{a.diff.additions} −{a.diff.deletions}</span>}
-          </>
-        )),
-      )}
-      {mine
-        .filter((a) => a.state === "done" && a.diff)
-        .map((a) => (
-          <Btn key={`${a.id}-diff`} onClick={() => reviewDiff(a.id)} title="git diff --stat in its terminal">
-            DIFF
-          </Btn>
-        ))}
-      {srv.map((s) =>
-        s.sessionId
-          ? tag(s.id, s.sessionId === selectedId, () => select(s.sessionId!), (
-              <>
-                <Dot tone={SERVER_TONE[s.state]} />:{s.port} {s.state === "stopped" ? <span className="text-dim">stopped</span> : s.command}
-              </>
-            ))
-          : null,
-      )}
-      {others.map((t) =>
-        tag(t.id, t.id === selectedId, () => select(t.id), (
-          <>
-            <Dot tone="dim" />
-            {t.title.split(" · ").slice(1).join(" · ") || t.title}
-          </>
-        )),
-      )}
-      {srv
-        .filter((s) => s.state === "running" || s.state === "starting")
-        .map((s) => (
-          <LocalLink key={`${s.id}-open`} port={s.port} />
-        ))}
-      {live && (
-        <Btn tone="quiet" onClick={() => startShell(repo)} title="a shell run by the helper (outside Herdr) in this repo">
-          + SHELL
-        </Btn>
-      )}
-      {srv
-        .filter((s) => s.state === "stopped")
-        .map((s) => (
-          <Btn key={`${s.id}-start`} onClick={() => start(s.id)} title={`start ${s.command} on :${s.port}`}>
-            START
-          </Btn>
-        ))}
-    </div>
-  );
-}
-
-function Drawer({ project }: { project: DevProject }) {
-  const items = useServiceViews(project);
-  const toggle = useDevStore((s) => s.toggleProject);
-  const openPicker = useDevStore((s) => s.openPicker);
+function AgentRow({ a }: { a: AgentSession }) {
   const jump = useDevStore((s) => s.jump);
-  const live = useDevStore((s) => s.bridgeMode === "live");
+  const tone = AGENT_TONE[a.state];
   return (
-    <section aria-label={`project ${project.repo}`} data-drawer={project.repo} className="umbra-fade-in flex min-h-0 shrink flex-col">
-      <SectionHead
-        title={
-          <span className="flex items-center gap-[7px]">
-            <AccentBar repo={project.repo} />
-            PROJECT · {project.repo}
-          </span>
-        }
-        meta={`${items.length} service${items.length === 1 ? "" : "s"}`}
-      >
-        {live && (
-          <Btn tone="quiet" onClick={() => jump({ kind: "cursor", repo: project.repo })} title={`open ${project.path} in Cursor`}>
-            OPEN IN CURSOR
-          </Btn>
-        )}
-        <Btn tone="quiet" onClick={() => openPicker(project.repo)}>
-          + SERVICE
-        </Btn>
-        <Btn tone="quiet" onClick={() => toggle(project.repo)}>
-          CLOSE
-        </Btn>
-      </SectionHead>
-      <Sessions repo={project.repo} />
-      <div className="mt-[10px] grid min-h-0 grid-cols-2 content-start gap-x-[22px] gap-y-[10px] overflow-y-auto pr-[2px]">
-        {items.length === 0 && <div className="col-span-2 text-[10px] text-dim">no services attached · + service to add one</div>}
-        {items.map((it) => (
-          <ServiceCard key={it.adapter.id} item={it} repo={project.repo} />
-        ))}
-      </div>
-    </section>
+    <div className="flex min-w-0 items-center gap-[9px]" data-agent={a.id}>
+      <Dot tone={tone} />
+      <span className="w-[92px] shrink-0 truncate text-ink/90">{agentLabel(a)}</span>
+      <span className={`w-[52px] shrink-0 ${a.state === "waiting" || a.state === "failed" ? TEXT_TONE[tone] : "text-dim"}`}>{AGENT_WORD[a.state]}</span>
+      <span className="min-w-0 flex-1 truncate text-mid" title={a.prompt?.title ?? a.task}>
+        {a.state === "waiting" && a.prompt?.title ? <span className="text-attention/80">{a.prompt.title}</span> : a.task || <span className="text-ghost">no title</span>}
+      </span>
+      <Jump label="herdr" title={`focus ${agentLabel(a)} in Herdr`} onClick={() => jump({ kind: "herdr", sessionId: a.sessionId })} />
+    </div>
   );
 }
 
-/** Service details for the expanded project, under the terminal. */
+/** A little more about one project: its agents, git and ports. Read-only apart from jumps. */
 export default function ProjectDrawer() {
-  const project = useDevStore((s) => s.projects.find((p) => p.repo === s.expandedProject));
-  if (!project) return null;
-  return <Drawer key={project.repo} project={project} />;
+  const repo = useDevStore((s) => s.expandedProject);
+  const project = useDevStore((s) => s.projects.find((p) => p.repo === repo));
+  const all = useDevStore((s) => s.agents);
+  const git = useDevStore((s) => (repo ? s.git[repo] : undefined));
+  const ci = useDevStore((s) => (repo ? s.ci[repo] : undefined));
+  const servers = useDevStore((s) => s.servers).filter((x) => x.repo === repo && x.state !== "stopped" && x.state !== "free");
+  const toggle = useDevStore((s) => s.toggleProject);
+  const jump = useDevStore((s) => s.jump);
+  const now = useMinuteClock()?.getTime();
+  if (!repo || !project) return null;
+  const agents = all.filter((a) => a.repo === repo);
+
+  return (
+    <div className="flex min-h-0 flex-col gap-[14px] overflow-y-auto" data-drawer={repo}>
+      <div className="flex h-[16px] items-center gap-[10px] text-[11px] leading-none">
+        <AccentDot repo={repo} />
+        <span className="tracking-[1px] text-ink">{repo}</span>
+        <span className="min-w-0 flex-1 truncate text-[9.5px] text-dim" title={project.path}>
+          {project.path}
+        </span>
+        <Jump label="cursor" title={`open ${repo} in Cursor`} onClick={() => jump({ kind: "cursor", repo })} />
+        <button type="button" onClick={() => toggle(repo)} className="shrink-0 text-[10px] text-dim hover:text-ink" aria-label="close project">
+          ✕
+        </button>
+      </div>
+
+      <Block title="AGENTS">{agents.length ? agents.map((a) => <AgentRow key={a.id} a={a} />) : <span className="text-dim">No agents in its Herdr workspaces.</span>}</Block>
+
+      <Block title="GIT">
+        {git ? (
+          <>
+            <div className="flex min-w-0 gap-[10px]">
+              <span className="text-ink/90">{git.branch}</span>
+              <span className={git.uncommitted || git.ahead ? "text-mid" : "text-dim"}>{gitLong(git)}</span>
+              {!git.remote && <span className="text-dim">· no remote</span>}
+            </div>
+            {git.staleBranches.length > 0 && (
+              <div className="truncate text-dim" title={git.staleBranches.map((b) => `${b.name} · ${b.days}d`).join("\n")}>
+                stale · {git.staleBranches.map((b) => `${b.name} ${b.days}d`).join(" · ")}
+              </div>
+            )}
+          </>
+        ) : (
+          <span className="text-dim">reading…</span>
+        )}
+        {ci && (
+          <div className="flex min-w-0 items-center gap-[9px]">
+            <Dot tone={CI_TONE[ci.status]} />
+            <span className={`shrink-0 ${ci.status === "failed" ? "text-broken" : "text-dim"}`}>ci {ci.status}</span>
+            <span className="min-w-0 flex-1 truncate text-mid">
+              {ci.branch} · {ci.summary}
+            </span>
+            {now && <span className="shrink-0 text-dim">{formatAge(now - ci.at)}</span>}
+            {ci.url && (
+              <a href={ci.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9.5px] text-dim hover:text-active">
+                github ↗
+              </a>
+            )}
+          </div>
+        )}
+      </Block>
+
+      <Block title="PORTS">
+        {servers.length ? (
+          servers.map((x) => (
+            <div key={x.id} className="flex min-w-0 items-center gap-[9px]">
+              <Dot tone={x.state === "running" ? "active" : "dim"} />
+              <span className="w-[44px] shrink-0 tabular-nums text-ink/90">:{x.port}</span>
+              <span className="min-w-0 flex-1 truncate text-dim" title={x.note ? `${x.command}\n${x.note}` : x.command}>
+                {x.command}
+              </span>
+              {x.state !== "running" && <span className="shrink-0 text-dim">{x.state === "stale" ? "orphan" : x.state}</span>}
+              {isListening(x) && <LocalLink port={x.port} />}
+            </div>
+          ))
+        ) : (
+          <span className="text-dim">Nothing listening.</span>
+        )}
+      </Block>
+    </div>
+  );
 }

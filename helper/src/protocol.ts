@@ -105,7 +105,7 @@ export interface RecentProject {
   lastSeen: number;
 }
 
-/** github service payload (src/lib/dev/services/github.ts GithubPayload). */
+/** services.github[repo]: git status + PR count (the app reads it as GitInfo in src/lib/dev/types.ts). */
 export interface GitPayload {
   remote: string | null;
   branch: string;

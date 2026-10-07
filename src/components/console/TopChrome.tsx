@@ -26,9 +26,9 @@ function useMacHealth(): { state: Health; title: string; pulse: boolean } {
     case "connecting":
       return { state: "unknown", pulse: true, title: "mac: connecting to the helper…" };
     case "down":
-      return { state: "down", pulse: false, title: `mac: helper unreachable · ${helper.error ?? "start it with pnpm helper"} · showing sample data` };
+      return { state: "down", pulse: false, title: `mac: helper unreachable · ${helper.error ?? "start it with pnpm helper"}` };
     default:
-      return { state: "unknown", pulse: false, title: "mac: helper not configured (.env.local) · sample data" };
+      return { state: "unknown", pulse: false, title: "mac: helper not configured · `pnpm helper` prints the .env.local lines" };
   }
 }
 

@@ -19,7 +19,7 @@ export default function CoreStage() {
   const attention = useUmbra((s) => s.attention);
   const lit = litDomain(mode);
   const focus = mode === "rail:dev";
-  const focusOpen = useDevStore((s) => !!s.sessions[s.selectedId] || s.expandedProject !== null);
+  const focusOpen = useDevStore((s) => s.expandedProject !== null);
   const levels = useMemo(
     () => Object.fromEntries(Object.entries(attention).map(([d, a]) => [d, a.level])) as CoreSceneProps["attention"],
     [attention],

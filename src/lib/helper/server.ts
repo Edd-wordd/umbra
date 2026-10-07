@@ -3,7 +3,7 @@ if (typeof window !== "undefined") throw new Error("lib/helper/server is server-
 /**
  * Server side of the Mac helper link. UMBRA_HELPER_URL / UMBRA_HELPER_TOKEN
  * come from .env.local and never leave this process: the browser only ever
- * receives single-use, 60-second socket tickets and one-shot approval ids.
+ * receives single-use, 60-second socket tickets.
  */
 
 export interface HelperEnv {

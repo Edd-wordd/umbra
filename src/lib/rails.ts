@@ -49,8 +49,8 @@ export interface PanelContent {
 const r = (...cells: PanelRow["cells"]): PanelRow => ({ cells });
 
 export const RAIL_SAMPLE: Record<RailId, PanelContent> = {
-  // The Dev rail opens the Dev focus workspace (src/components/console/devfocus);
-  // its services render per project via src/lib/dev/services adapters.
+  // The Dev rail opens the Dev focus workspace (src/components/console/devfocus):
+  // recent pings + one line per project, live from the Mac helper.
   dev: { sections: [], actions: [] },
   lab: {
     sections: [

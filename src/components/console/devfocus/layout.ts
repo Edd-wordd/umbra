@@ -17,7 +17,7 @@ export const DEV_FOCUS = {
   /** Right rails' footprint. */
   railGutter: 110,
   /** Slim left column shown by default; the right panel slides open on selection. */
-  slim: 440,
+  slim: 500,
 } as const;
 
 const { left, reserve, minWidth, maxWidth } = DEV_FOCUS;
