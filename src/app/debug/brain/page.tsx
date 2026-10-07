@@ -1,11 +1,12 @@
 import { parseObsidianNote, indexObsidianNotes } from "@/lib/knowledge";
 import { createSampleBrain } from "@/lib/brain";
-import { buildOpsNeeds } from "@/lib/ops";
+import { buildOpsNeeds, buildWhatChanged } from "@/lib/ops";
 
 export default async function BrainDebugPage() {
   const now = 1_700_000_000_000;
   const brain = createSampleBrain(now);
   const needs = await buildOpsNeeds(brain);
+  const whatChanged = buildWhatChanged({ since: now - 60 * 60_000, generatedAt: now, needs, memory: brain.memory });
   const obsidian = indexObsidianNotes([
     parseObsidianNote(
       "umbra",
@@ -76,6 +77,22 @@ Umbra's typed graph is the machine memory layer.
             </div>
           </Panel>
         </section>
+
+        <Panel title="What changed since I left?">
+          {whatChanged.quiet ? (
+            <p className="text-sm text-slate-500">all quiet</p>
+          ) : (
+            <ul className="space-y-2 text-sm text-slate-300">
+              {whatChanged.items.map((item) => (
+                <li key={item.id} className="border-l border-cyan-400/30 pl-3">
+                  <span className={item.severity === "attention" ? "text-amber-200" : "text-cyan-200"}>{item.kind}</span>
+                  <span className="text-slate-600"> · </span>
+                  {item.summary}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
         <Panel title="Needs Edward">
           <div className="space-y-4">
