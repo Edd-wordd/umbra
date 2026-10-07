@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  OPTIONAL: keep the Umbra Mac helper running in the background (launchd).
-  Not installed by anything. To use it:
-    1. pnpm helper:build            (compiles helper/dist once; rebuild after pulling changes)
-    2. cp helper/launchd/com.umbra.helper.plist.example ~/Library/LaunchAgents/com.umbra.helper.plist
-    3. Edit the three paths marked EDIT (node from `nvm which 22`, the repo path, your home).
-    4. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.umbra.helper.plist
-  Stop / remove: launchctl bootout gui/$(id -u)/com.umbra.helper
-  Logs: /tmp/umbra-helper.log (stdout + stderr).
-  PATH matters: launchd starts with a bare PATH, and the helper calls herdr (~/.local/bin),
-  gh and lsof (/usr/local/bin, /usr/sbin), git and ps.
+  Start the Umbra Mac helper at login (launchd LaunchAgent), so pings work
+  without a terminal open.
+
+    pnpm helper:install-login     builds helper/dist, fills in the @…@ values below,
+                                  writes ~/Library/LaunchAgents/com.umbra.helper.plist
+                                  and runs `launchctl bootstrap gui/$UID` on it
+    pnpm helper:uninstall-login   `launchctl bootout` + removes the plist
+
+  @NODE@      the node that ran the install (nvm: rerun the install after switching versions)
+  @REPO@      this repo's absolute path
+  @HOME@      your home folder
+  @PATH@      ~/.local/bin (herdr) : /usr/local/bin (Intel Homebrew: gh, terminal-notifier)
+              : /opt/homebrew/bin (Apple Silicon Homebrew) : node's bin dir : system dirs
+              (launchd starts with a bare PATH; lsof lives in /usr/sbin)
+  Logs: ~/Library/Logs/umbra-helper.log (stdout + stderr). After pulling changes:
+  pnpm helper:install-login again (rebuilds and restarts it).
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -18,20 +24,17 @@
   <string>com.umbra.helper</string>
   <key>ProgramArguments</key>
   <array>
-    <!-- EDIT: output of `nvm which 22` -->
-    <string>/Users/eddwordd/.nvm/versions/node/v22.23.3/bin/node</string>
-    <!-- EDIT: repo path -->
-    <string>/Users/eddwordd/Documents/codes/projects/umbra/helper/dist/main.js</string>
+    <string>@NODE@</string>
+    <string>@REPO@/helper/dist/main.js</string>
   </array>
   <key>WorkingDirectory</key>
-  <!-- EDIT: repo path -->
-  <string>/Users/eddwordd/Documents/codes/projects/umbra</string>
+  <string>@REPO@</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/Users/eddwordd/.local/bin:/Users/eddwordd/.nvm/versions/node/v22.23.3/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>@PATH@</string>
     <key>HOME</key>
-    <string>/Users/eddwordd</string>
+    <string>@HOME@</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -42,9 +45,11 @@
   </dict>
   <key>ThrottleInterval</key>
   <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Interactive</string>
   <key>StandardOutPath</key>
-  <string>/tmp/umbra-helper.log</string>
+  <string>@HOME@/Library/Logs/umbra-helper.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/umbra-helper.log</string>
+  <string>@HOME@/Library/Logs/umbra-helper.log</string>
 </dict>
 </plist>

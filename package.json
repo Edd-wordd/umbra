@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit && tsc -p helper --noEmit",
     "helper": "pnpm --filter umbra-helper start",
     "helper:build": "pnpm --filter umbra-helper build",
-    "helper:test": "pnpm --filter umbra-helper test"
+    "helper:test": "pnpm --filter umbra-helper test",
+    "helper:install-login": "pnpm helper:build && node helper/scripts/login.mjs install",
+    "helper:uninstall-login": "node helper/scripts/login.mjs uninstall"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",
