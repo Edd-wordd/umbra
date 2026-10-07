@@ -47,7 +47,7 @@ export default function Terminal() {
   const runCommand = useDevStore((s) => s.runCommand);
   const close = useDevStore((s) => s.closeTerminal);
   const live = useDevStore((s) => s.bridgeMode === "live");
-  const focusPane = useDevStore((s) => s.focusPane);
+  const jump = useDevStore((s) => s.jump);
   const respond = useDevStore((s) => s.respondPrompt);
   const [cmd, setCmd] = useState("");
   const [history, setHistory] = useState<string[]>([]);
@@ -139,8 +139,8 @@ export default function Terminal() {
           {stateLabel.toUpperCase()}
         </span>
         {pane && (
-          <Btn tone="quiet" onClick={() => focusPane(selectedId)} title={`bring ${pane} to the front in Herdr`}>
-            FOCUS IN HERDR
+          <Btn tone="quiet" onClick={() => jump({ kind: "herdr", sessionId: selectedId })} title={`focus ${pane} in Herdr and bring the terminal to the front`}>
+            OPEN IN HERDR
           </Btn>
         )}
         <button type="button" onClick={close} className="shrink-0 text-[10px] text-dim hover:text-ink" aria-label="close terminal" title="close terminal">

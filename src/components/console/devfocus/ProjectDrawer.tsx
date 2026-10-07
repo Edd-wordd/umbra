@@ -5,7 +5,7 @@ import type { DevProject } from "@/lib/dev/projects";
 import { AGENT_TONE, SERVER_TONE } from "@/lib/dev/format";
 import { STATUS_TONE } from "@/lib/dev/services";
 import { runServiceAction } from "./approval";
-import { Btn, Dot, SectionHead, Spark, TEXT_TONE } from "./ui";
+import { AccentBar, Btn, Dot, LocalLink, SectionHead, Spark, TEXT_TONE } from "./ui";
 import { useServiceViews, type ServiceItem } from "./useServiceViews";
 
 function ServiceCard({ item, repo }: { item: ServiceItem; repo: string }) {
@@ -95,7 +95,8 @@ function Sessions({ repo }: { repo: string }) {
         tag(a.id, a.sessionId === selectedId, () => select(a.sessionId), (
           <>
             <Dot tone={AGENT_TONE[a.state]} pulse={a.state === "running"} />
-            {a.agent} {a.state}
+            {a.agent}
+            {a.where && <span className="text-dim">{a.where}</span>} {a.state}
             {a.state === "done" && a.diff && <span className="text-dim">+{a.diff.additions} −{a.diff.deletions}</span>}
           </>
         )),
@@ -124,6 +125,11 @@ function Sessions({ repo }: { repo: string }) {
           </>
         )),
       )}
+      {srv
+        .filter((s) => s.state === "running" || s.state === "starting")
+        .map((s) => (
+          <LocalLink key={`${s.id}-open`} port={s.port} />
+        ))}
       {live && (
         <Btn tone="quiet" onClick={() => startShell(repo)} title="a shell run by the helper (outside Herdr) in this repo">
           + SHELL
@@ -144,9 +150,24 @@ function Drawer({ project }: { project: DevProject }) {
   const items = useServiceViews(project);
   const toggle = useDevStore((s) => s.toggleProject);
   const openPicker = useDevStore((s) => s.openPicker);
+  const jump = useDevStore((s) => s.jump);
+  const live = useDevStore((s) => s.bridgeMode === "live");
   return (
     <section aria-label={`project ${project.repo}`} data-drawer={project.repo} className="umbra-fade-in flex min-h-0 shrink flex-col">
-      <SectionHead title={`PROJECT · ${project.repo}`} meta={`${items.length} service${items.length === 1 ? "" : "s"}`}>
+      <SectionHead
+        title={
+          <span className="flex items-center gap-[7px]">
+            <AccentBar repo={project.repo} />
+            PROJECT · {project.repo}
+          </span>
+        }
+        meta={`${items.length} service${items.length === 1 ? "" : "s"}`}
+      >
+        {live && (
+          <Btn tone="quiet" onClick={() => jump({ kind: "cursor", repo: project.repo })} title={`open ${project.path} in Cursor`}>
+            OPEN IN CURSOR
+          </Btn>
+        )}
         <Btn tone="quiet" onClick={() => openPicker(project.repo)}>
           + SERVICE
         </Btn>

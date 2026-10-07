@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { accentOf } from "@/lib/dev/colors";
 import type { DevTone } from "@/lib/dev/format";
 
 export const TEXT_TONE: Record<DevTone, string> = {
@@ -17,6 +18,27 @@ const DOT_TONE: Record<DevTone, string> = {
   dim: "border border-dim",
 };
 
+/** Project identity mark: a thin bar in the project's accent (square, never a status color). */
+export function AccentBar({ repo }: { repo: string }) {
+  return <span aria-hidden className="h-[9px] w-[2px] shrink-0 opacity-80" style={{ background: accentOf(repo).hex }} />;
+}
+
+/** `localhost:PORT ↗` (only rendered while something listens there). */
+export function LocalLink({ port, short = false }: { port: number; short?: boolean }) {
+  return (
+    <a
+      href={`http://localhost:${port}`}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title={`open http://localhost:${port}`}
+      className="shrink-0 text-[9.5px] tabular-nums text-dim hover:text-active"
+    >
+      {short ? "↗" : `localhost:${port} ↗`}
+    </a>
+  );
+}
+
 /** 5px state dot. Only activity states fill and glow; idle ones are hollow. */
 export function Dot({ tone, pulse = false }: { tone: DevTone; pulse?: boolean }) {
   return (
@@ -27,7 +49,7 @@ export function Dot({ tone, pulse = false }: { tone: DevTone; pulse?: boolean })
   );
 }
 
-export function SectionHead({ title, meta, children }: { title: string; meta?: ReactNode; children?: ReactNode }) {
+export function SectionHead({ title, meta, children }: { title: ReactNode; meta?: ReactNode; children?: ReactNode }) {
   return (
     <div className="flex h-[16px] items-center gap-[12px] text-[9.5px] leading-none">
       <span className="shrink-0 whitespace-nowrap tracking-[2px] text-mid">{title}</span>

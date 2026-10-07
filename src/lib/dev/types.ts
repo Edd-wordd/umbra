@@ -63,6 +63,8 @@ export interface AgentSession {
   managed?: boolean;
   pid?: number;
   note?: string;
+  /** Live: tells apart one project's agents in different Herdr workspaces ("ws 1" / "ws 6"). */
+  where?: string;
 }
 
 /** One rendered terminal line. The real bridge sends ANSI chunks; the helper normalises them to lines. */
@@ -176,7 +178,10 @@ export type DevRequest =
   /** Live bridge: stream this session's output while it's on screen (Herdr panes are read on demand). */
   | { type: "term.watch"; sessionId: string; on: boolean }
   /** Live bridge: jump to this pane in Herdr. */
-  | { type: "pane.focus"; sessionId: string };
+  | { type: "pane.focus"; sessionId: string }
+  /** Live bridge: jump buttons · Herdr pane (focus + raise the terminal app) or the project in Cursor. */
+  | { type: "jump"; kind: "herdr"; sessionId: string }
+  | { type: "jump"; kind: "cursor"; repo: RepoId };
 
 /** Bridge -> UI. The store is a pure reducer over these. */
 export type DevEvent =

@@ -605,6 +605,10 @@ export function createMockDevBridge(snapshot: DevSnapshot): DevBridge {
         return;
       }
 
+      case "jump":
+        emit({ type: "notice", text: `sample · would open ${req.kind === "herdr" ? "that pane in Herdr" : `${req.repo} in Cursor`} (needs the Mac helper)`, result: "info" });
+        return;
+
       case "sessions.resume": {
         for (const a of model.agents) append(a.sessionId, [["sys", `↺ session reattached · ${a.repo}:${a.agent}`]]);
         emit({ type: "notice", text: `${model.agents.length} sessions reattached`, result: "ok" });

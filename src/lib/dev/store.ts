@@ -96,6 +96,8 @@ interface DevState extends DevSnapshot {
   startShell: (repo: RepoId, source?: ActivitySource) => void;
   /** Live: bring this pane to the front in Herdr. */
   focusPane: (sessionId: string, source?: ActivitySource) => void;
+  /** Live: jump to an agent's Herdr pane (terminal app to the front) or open a project in Cursor. */
+  jump: (to: { kind: "herdr"; sessionId: string } | { kind: "cursor"; repo: RepoId }, source?: ActivitySource) => void;
   closeTerminal: () => void;
   setHandoff: (open: boolean) => void;
   focusDispatch: () => void;
@@ -304,6 +306,11 @@ export const useDevStore = create<DevState>()((set, get) => {
     focusPane: (sessionId, source = "touch") => {
       get().log(source, `focus in Herdr · ${sessionLabel(get(), sessionId)}`, "ok");
       bridge.send({ type: "pane.focus", sessionId });
+    },
+
+    jump: (to, source = "touch") => {
+      get().log(source, to.kind === "herdr" ? `open in Herdr · ${sessionLabel(get(), to.sessionId)}` : `open in Cursor · ${to.repo}`, "ok");
+      bridge.send({ type: "jump", ...to });
     },
 
     closeTerminal: () => get().select(""),

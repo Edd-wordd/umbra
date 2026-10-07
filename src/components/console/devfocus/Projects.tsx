@@ -8,7 +8,7 @@ import { SERVICES, STATUS_TONE, worstStatus, type ServiceStatus } from "@/lib/de
 import type { AgentSession } from "@/lib/dev/types";
 import { useTriageStore } from "@/lib/decide/store";
 import type { SignalKind } from "@/lib/dev/signals";
-import { Btn, Chip, Dot, SectionHead } from "./ui";
+import { AccentBar, Btn, Chip, Dot, LocalLink, SectionHead } from "./ui";
 import type { ServiceItem } from "./useServiceViews";
 
 function Picker({ project }: { project: DevProject }) {
@@ -77,7 +77,8 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
   const mine = agents.filter((a) => a.repo === project.repo);
   const running = mine.filter((a) => a.state === "running" || (live && a.state === "waiting"));
   // Live (Herdr): agents sitting ready show as one quiet marker per kind.
-  const ready = live ? groupBy(mine.filter((a) => a.state === "idle" || a.state === "done"), (a) => a.agent) : [];
+  // Agents from both of a repo's Herdr workspaces stay apart ("cursor ws 1", "cursor ws 6").
+  const ready = live ? groupBy(mine.filter((a) => a.state === "idle" || a.state === "done"), (a) => (a.where ? `${a.agent} ${a.where}` : a.agent)) : [];
   const review = mine.find((a) => a.state === "done" && a.diff);
   const flagged = items.filter((i) => i.view.status === "attention" || i.view.status === "broken");
   const activeSvc = items.find((i) => i.view.status === "active");
@@ -107,6 +108,7 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
       >
         {expanded && <span className="absolute inset-y-[4px] left-0 w-[2px] bg-mid" />}
         <Dot tone={STATUS_TONE[worst]} />
+        <AccentBar repo={project.repo} />
         <span
           className="flex w-[96px] shrink-0 items-baseline gap-[4px] truncate text-ink"
           title={project.workspaces?.length ? `${project.path} · Herdr workspace${project.workspaces.length > 1 ? "s" : ""} ${project.workspaces.join(", ")}${project.agentStatus ? ` · ${project.agentStatus}` : ""}` : project.path}
@@ -147,6 +149,7 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
             >
               <Dot tone={a.state === "waiting" ? "attention" : "active"} pulse={a.state === "running"} />
               {a.agent}
+              {a.where && <span className="text-ghost">{a.where}</span>}
             </button>
           ))}
           {ready.map(([kind, list]) => (
@@ -167,18 +170,20 @@ function ProjectRow({ project, items }: { project: DevProject; items: ServiceIte
             </button>
           ))}
           {ports.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              title={`${s.command} · pid ${s.pid} · open its log`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (s.sessionId) select(s.sessionId);
-              }}
-              className="text-[9.5px] tabular-nums text-active/70 hover:text-active"
-            >
-              :{s.port}
-            </button>
+            <span key={s.id} className="flex items-center gap-[3px]">
+              <button
+                type="button"
+                title={`${s.command} · pid ${s.pid} · open its log`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (s.sessionId) select(s.sessionId);
+                }}
+                className="text-[9.5px] tabular-nums text-active/70 hover:text-active"
+              >
+                :{s.port}
+              </button>
+              {s.state === "running" && <LocalLink port={s.port} short />}
+            </span>
           ))}
           <button
             type="button"

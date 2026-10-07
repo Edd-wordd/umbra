@@ -6,7 +6,8 @@ import { useDevStore } from "@/lib/dev/store";
 import type { DockerPayload } from "@/lib/dev/services/docker";
 import type { DevServer } from "@/lib/dev/types";
 import { approvePending, denyPending } from "./approval";
-import { ApprovalStrip, Btn, Dot, TEXT_TONE } from "./ui";
+import { accentOf } from "@/lib/dev/colors";
+import { ApprovalStrip, Btn, Dot, LocalLink, TEXT_TONE } from "./ui";
 
 function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
   const select = useDevStore((st) => st.select);
@@ -36,7 +37,9 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
         {selected && <span className="absolute inset-y-[4px] left-0 w-[2px] bg-mid" />}
         <Dot tone={tone} pulse={s.state === "starting"} />
         <span className={`w-[40px] shrink-0 tabular-nums ${s.state === "free" || s.state === "stopped" ? "text-dim" : "text-ink"}`}>:{s.port}</span>
-        <span className="shrink-0 text-ink">{who}</span>
+        <span className="shrink-0 text-ink" style={s.repo ? { color: accentOf(s.repo).hex } : undefined}>
+          {who}
+        </span>
         <span className="min-w-0 truncate text-dim">{what}</span>
         <span className="ml-auto flex shrink-0 items-center gap-[8px]">
           {s.state === "stale" && !holding && (
@@ -48,6 +51,7 @@ function ServerRow({ s, selected }: { s: DevServer; selected: boolean }) {
             </>
           )}
           {s.state === "stopped" && <Btn onClick={() => start(s.id)}>START</Btn>}
+          {(s.state === "running" || s.state === "starting") && <LocalLink port={s.port} />}
           {(s.state === "running" || s.state === "starting" || s.state === "free" || holding) && (
             <span className={`text-[9.5px] tracking-[1px] ${holding ? "text-attention" : TEXT_TONE[tone]}`}>{holding ? "HELD" : label}</span>
           )}

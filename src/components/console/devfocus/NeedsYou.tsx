@@ -6,6 +6,7 @@ import { TRIAGE_POLICY, type TriageDecision } from "@/lib/decide/triage";
 import { deriveNeeds, type Need } from "@/lib/dev/needs";
 import { signalsFromNeeds, type DevSignal } from "@/lib/dev/signals";
 import type { RepoId } from "@/lib/dev/types";
+import { accentOf } from "@/lib/dev/colors";
 import { useDevStore } from "@/lib/dev/store";
 import { approvePending, denyPending, runServiceAction } from "./approval";
 import { ApprovalStrip, Btn, Dot, SectionHead } from "./ui";
@@ -19,6 +20,8 @@ function NeedActions({ n }: { n: Need }) {
   const respond = useDevStore((s) => s.respondPrompt);
   const requestKill = useDevStore((s) => s.requestKill);
   const select = useDevStore((s) => s.select);
+  const jump = useDevStore((s) => s.jump);
+  const live = useDevStore((s) => s.bridgeMode === "live");
   const holding = useDevStore((s) => s.pending?.origin === "ports" && s.pending.args?.port === String(n.server?.port));
 
   switch (n.kind) {
@@ -38,6 +41,11 @@ function NeedActions({ n }: { n: Need }) {
             APPROVE
           </Btn>
           <Btn onClick={() => respond(n.agent!.id, "deny")}>DENY</Btn>
+          {live && n.agent!.sessionId.startsWith("pane:") && (
+            <Btn tone="quiet" onClick={() => jump({ kind: "herdr", sessionId: n.agent!.sessionId })} title="answer it in Herdr (terminal to the front)">
+              HERDR ↗
+            </Btn>
+          )}
         </>
       );
     case "agent-failed":
@@ -197,7 +205,9 @@ function RowView({ row }: { row: Row }) {
       >
         {active && <span className="absolute inset-y-[5px] left-0 w-[2px] bg-mid" />}
         <Dot tone={tone} pulse={false} />
-        <span className="w-[92px] shrink-0 truncate text-ink">{who}</span>
+        <span className="w-[92px] shrink-0 truncate text-ink" style={repo ? { color: accentOf(repo).hex } : undefined}>
+          {who}
+        </span>
         {d?.unsure && (
           <span className="-mx-[2px] shrink-0 text-[9px] text-attention/70" title="unsure · shown to be safe">
             ?
