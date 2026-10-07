@@ -37,7 +37,7 @@ Deep links for demos: `/?focus=dev` (or `/?rail=dev`) opens the Dev focus; `/?ra
 
 ### Dev focus (MOCK)
 
-Clicking the DEV tick opens the Dev rail as a workspace instead of the narrow panel. It stays awake while open (no 20 s collapse, no click-outside close); `Esc`, `esc ✕` or the DEV tick closes it. The core slides right and shrinks so the brain stays visible.
+Clicking the DEV tick opens the Dev rail as a workspace instead of the narrow panel. It stays awake while open (no 20 s collapse, no click-outside close); `Esc`, `esc ✕` or the DEV tick closes it. By default it is one slim column beside a large core; selecting a need, project, session or server slides a detail panel open to its right (`✕` / CLOSE / deselect collapses it again) and the core moves over and shrinks.
 
 Everything is SAMPLE data from `src/lib/mock/dev.ts`; nothing runs a process, opens a socket or touches the filesystem.
 

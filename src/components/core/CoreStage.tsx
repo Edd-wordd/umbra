@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useDevStore } from "@/lib/dev/store";
 import { litDomain, useUmbra } from "@/lib/store";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import CoreLabels from "./CoreLabels";
@@ -18,6 +19,7 @@ export default function CoreStage() {
   const attention = useUmbra((s) => s.attention);
   const lit = litDomain(mode);
   const focus = mode === "rail:dev";
+  const focusOpen = useDevStore((s) => !!s.sessions[s.selectedId] || s.expandedProject !== null);
   const levels = useMemo(
     () => Object.fromEntries(Object.entries(attention).map(([d, a]) => [d, a.level])) as CoreSceneProps["attention"],
     [attention],
@@ -25,7 +27,7 @@ export default function CoreStage() {
 
   return (
     <div className="pointer-events-none absolute inset-0" data-testid="core" data-attention={attention.dev?.level ?? "none"}>
-      <CoreCanvas litDomain={lit} voice={voice} reducedMotion={reducedMotion} attention={levels} focus={focus} />
+      <CoreCanvas litDomain={lit} voice={voice} reducedMotion={reducedMotion} attention={levels} focus={focus} focusOpen={focusOpen} />
       <CoreLabels litDomain={lit} attention={attention} hidden={focus} />
     </div>
   );

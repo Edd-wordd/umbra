@@ -32,16 +32,14 @@ function Overview() {
   );
 }
 
-/** Right column: the terminal and project details appear only when asked for. */
+/** True when something is selected: the detail panel slides open. */
+export const useDetailOpen = () => useDevStore((s) => !!s.sessions[s.selectedId] || s.expandedProject !== null);
+
+/** Detail panel: terminal and/or project cards, only while something is selected. */
 function Detail() {
   const hasTerminal = useDevStore((s) => !!s.sessions[s.selectedId]);
   const hasProject = useDevStore((s) => s.expandedProject !== null);
-  if (!hasTerminal && !hasProject)
-    return (
-      <div className="flex flex-1 items-center justify-center text-[10px] text-ghost" data-detail-empty>
-        pick a line on the left · its terminal or services open here
-      </div>
-    );
+  if (!hasTerminal && !hasProject) return null;
   return (
     <>
       <Terminal />
@@ -51,35 +49,40 @@ function Detail() {
 }
 
 /**
- * Dev focus: the Dev rail expanded into a workspace (agents, terminal, ports,
- * CI, hand-off, dispatch, activity). Docked to the DEV tick like every rail
- * panel; stays awake while open (Esc or the DEV tick closes it).
+ * Dev focus: the Dev rail expanded into a workspace. By default a slim column
+ * beside a large core; selecting a need, project, agent or server slides the
+ * detail panel open (transform/opacity only). Stays awake while open (Esc or
+ * the DEV tick closes it).
  */
 export default function DevFocus() {
   const toIdle = useUmbra((s) => s.toIdle);
   const mock = useDevStore((s) => s.mock);
   const handoffOpen = useDevStore((s) => s.handoffOpen);
   const setHandoff = useDevStore((s) => s.setHandoff);
+  const open = useDetailOpen();
   const rail = getRail("dev");
   const labelEnd = 26 + rail.label.length * 8 + 6;
+  const frame = { top: DEV_FOCUS.top, bottom: DEV_FOCUS.bottom };
 
   return (
-    <>
+    <div
+      data-keep-rail
+      data-focus="dev"
+      data-detail={open ? "open" : "closed"}
+      // First interaction outside the "left off" card folds it.
+      onClickCapture={(e) => {
+        if (handoffOpen && !(e.target as Element).closest("[data-handoff]")) setHandoff(false);
+      }}
+    >
       <div
         className="pointer-events-none absolute h-px bg-active/60"
         style={{ top: pct(rail.y), left: labelEnd, width: DEV_FOCUS.left - labelEnd }}
       />
       <section
-        data-keep-rail
         data-panel="dev"
-        data-focus="dev"
         aria-label="dev focus"
-        // First interaction outside the "left off" card folds it.
-        onClickCapture={(e) => {
-          if (handoffOpen && !(e.target as Element).closest("[data-handoff]")) setHandoff(false);
-        }}
-        className="umbra-slide-left absolute flex flex-col border border-line bg-panel"
-        style={{ left: DEV_FOCUS.left, top: DEV_FOCUS.top, bottom: DEV_FOCUS.bottom, width: devFocusWidthCss }}
+        className="umbra-slide-left absolute z-10 flex flex-col border border-line bg-panel"
+        style={{ ...frame, left: DEV_FOCUS.left, width: DEV_FOCUS.slim }}
       >
         <span className="glow-active absolute -left-px top-[-1px] bottom-[-1px] w-px bg-active/70" />
         <header className="flex h-[48px] shrink-0 items-center justify-between px-5">
@@ -99,17 +102,23 @@ export default function DevFocus() {
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 border-t border-line">
-          <div className="flex w-[46%] min-w-[400px] max-w-[480px] shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-line px-5 py-[16px]">
-            <Overview />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-[14px] px-5 py-[16px]">
-            <Detail />
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto border-t border-line px-5 py-[16px]">
+          <Overview />
         </div>
 
         <ActivityLog />
       </section>
-    </>
+
+      <aside
+        aria-label="dev detail"
+        aria-hidden={!open}
+        className={`absolute flex flex-col gap-[14px] border border-l-0 border-line bg-panel px-5 py-[16px] transition-[translate,opacity] duration-[240ms] ease-[var(--umbra-ease)] ${
+          open ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-[18px] opacity-0"
+        }`}
+        style={{ ...frame, left: DEV_FOCUS.left + DEV_FOCUS.slim, width: `calc(${devFocusWidthCss} - ${DEV_FOCUS.slim}px)` }}
+      >
+        <Detail />
+      </aside>
+    </div>
   );
 }

@@ -23,11 +23,13 @@ export interface CoreSceneProps {
   attention?: Partial<Record<DomainId, Exclude<SectorAttention, null>>>;
   /** Dev focus open: park the core beside the workspace. */
   focus?: boolean;
+  /** Dev focus detail panel open (core moves further right and shrinks). */
+  focusOpen?: boolean;
 }
 
 const IDLE_FPS = 10;
 
-export default function CoreScene({ layout = sampleLayout, litDomain, voice, level, reducedMotion, attention, focus = false }: CoreSceneProps) {
+export default function CoreScene({ layout = sampleLayout, litDomain, voice, level, reducedMotion, attention, focus = false, focusOpen = false }: CoreSceneProps) {
   const invalidate = useThree((s) => s.invalidate);
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
@@ -40,7 +42,7 @@ export default function CoreScene({ layout = sampleLayout, litDomain, voice, lev
     () => layout.sectors.map((sec) => attention?.[sec.domain] ?? null),
     [layout, attention],
   );
-  const view = useMemo(() => (focus ? coreFocusView(width, height) : CORE_HOME), [focus, width, height]);
+  const view = useMemo(() => (focus ? coreFocusView(width, height, focusOpen) : CORE_HOME), [focus, focusOpen, width, height]);
 
   // Any state change: render until the transition settles.
   useEffect(() => {
