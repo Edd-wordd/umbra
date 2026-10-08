@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { buildBrainViewModel } from "@/lib/brain";
+import { createSampleMultiDomainBrain } from "@/lib/domain";
+import { buildOpsNeeds } from "@/lib/ops";
 import { useUmbra } from "@/lib/store";
 
 /** Bottom chrome: ⌘K hint (left), Focus strip (center), Comms strip (right). SAMPLE values. */
@@ -7,6 +11,7 @@ export default function BottomStrips() {
   const mode = useUmbra((s) => s.mode);
   const openPalette = useUmbra((s) => s.openPalette);
   const dim = mode !== "idle";
+  const ops = useSampleOpsStrip();
   return (
     <div className="transition-opacity duration-300" style={{ opacity: dim ? 0.6 : 1 }}>
       <button
@@ -35,9 +40,32 @@ export default function BottomStrips() {
       )}
 
       <div className="absolute bottom-[37px] right-[104px] flex gap-[22px] text-[10px] leading-none" aria-label="comms">
-        <span className="tracking-[2px] text-dim">COMMS</span>
-        <span className="text-dim">2 unread · 0 urgent</span>
+        {ops ? (
+          <>
+            <span className="tracking-[2px] text-cyan-300/70">OPS</span>
+            <span className="text-dim">{ops.needs} needs · {ops.approvals} approvals · changed</span>
+          </>
+        ) : (
+          <>
+            <span className="tracking-[2px] text-dim">COMMS</span>
+            <span className="text-dim">2 unread · 0 urgent</span>
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+function useSampleOpsStrip() {
+  const [ops, setOps] = useState<{ needs: number; approvals: number } | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("brain") !== "sample") return;
+    const brain = createSampleMultiDomainBrain(Date.now());
+    const vm = buildBrainViewModel(brain);
+    buildOpsNeeds(brain).then((needs) => {
+      setOps({ needs: needs.length, approvals: vm.totals.approvals });
+    });
+  }, []);
+  return ops;
 }

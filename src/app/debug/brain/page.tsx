@@ -1,6 +1,8 @@
 import { parseObsidianNote, indexObsidianNotes } from "@/lib/knowledge";
+import DebugScrollRoot from "./DebugScrollRoot";
+import KnowledgeVaultPanel from "./KnowledgeVaultPanel";
 import { runArchitectureChecks } from "@/lib/architecture";
-import { buildGraphExamples } from "@/lib/brain";
+import { buildBrainViewModel, buildGraphExamples } from "@/lib/brain";
 import { routeCommandSamples } from "@/lib/commands";
 import { DOMAIN_ADAPTERS, DOMAIN_READINESS, createSampleMultiDomainBrain } from "@/lib/domain";
 import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
@@ -9,6 +11,7 @@ export default async function BrainDebugPage() {
   const now = 1_700_000_000_000;
   const brain = createSampleMultiDomainBrain(now);
   const needs = await buildOpsNeeds(brain);
+  const viewModel = buildBrainViewModel(brain);
   const graphExamples = buildGraphExamples(brain.graph);
   const architectureChecks = await runArchitectureChecks({ graph: brain.graph, situations: brain.situations });
   const commandRoutes = await routeCommandSamples([
@@ -59,7 +62,7 @@ Umbra's typed graph is the machine memory layer.
   ], now);
 
   return (
-    <main className="h-screen overflow-y-auto bg-[#050607] p-8 text-[#d7e4e8]">
+    <DebugScrollRoot>
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="border border-cyan-400/20 bg-black/30 p-5">
           <p className="text-xs uppercase tracking-[0.4em] text-cyan-300/70">Umbra debug</p>
@@ -90,6 +93,9 @@ Umbra's typed graph is the machine memory layer.
           </Panel>
           <Panel title="Domain summary">
             <pre className="overflow-auto text-xs text-slate-300">{JSON.stringify(brain.domains, null, 2)}</pre>
+          </Panel>
+          <Panel title="Real Obsidian vault">
+            <KnowledgeVaultPanel />
           </Panel>
           <Panel title="Obsidian index sample">
             <div className="space-y-2 text-sm">
@@ -131,6 +137,20 @@ Umbra's typed graph is the machine memory layer.
                 ))}
               </tbody>
             </table>
+          </div>
+        </Panel>
+
+        <Panel title="Visual brain model">
+          <div className="grid gap-2 text-sm text-slate-300 md:grid-cols-2 lg:grid-cols-4">
+            {viewModel.sectors.map((sector) => (
+              <div key={sector.domain} className="border border-white/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="uppercase tracking-[0.25em] text-slate-500">{sector.domain}</span>
+                  <span className={sector.status === "blocked" || sector.status === "critical" ? "text-red-300" : sector.status === "approval" || sector.status === "judgment" ? "text-amber-200" : sector.status === "actionable" || sector.status === "watch" ? "text-cyan-200" : "text-slate-600"}>{sector.status}</span>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{sector.total} nodes · {sector.attention} attention · {sector.situations.length} situations</p>
+              </div>
+            ))}
           </div>
         </Panel>
 
@@ -246,7 +266,7 @@ Umbra's typed graph is the machine memory layer.
           </ul>
         </Panel>
       </div>
-    </main>
+    </DebugScrollRoot>
   );
 }
 

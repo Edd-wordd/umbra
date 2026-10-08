@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { buildBrainViewModel } from "@/lib/brain";
 import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
 import { streamSampleEvents } from "@/lib/mock/events";
+import { createSampleMultiDomainBrain } from "@/lib/domain";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
@@ -87,6 +89,36 @@ function useDevAttention() {
   }, []);
 }
 
+/** Visual integration test: maps the sample multi-domain brain model into the existing core sector attention. */
+function useSampleBrainAttention() {
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("brain") !== "sample") return;
+    const vm = buildBrainViewModel(createSampleMultiDomainBrain(Date.now()));
+    for (const sector of vm.sectors) {
+      if (!(DOMAINS as readonly string[]).includes(sector.domain)) continue;
+      const domain = sector.domain as DomainId;
+      const note = sectorNote(sector.domain, sector.situations.length);
+      if (sector.status === "blocked" || sector.status === "critical") {
+        useUmbra.getState().setAttention(domain, { level: "broken", note });
+      } else if (!["silent", "fyi"].includes(sector.status)) {
+        useUmbra.getState().setAttention(domain, { level: "attention", note });
+      }
+    }
+  }, []);
+}
+
+function sectorNote(domain: string, count: number) {
+  if (domain === "print") return count === 1 ? "1 print ready" : `${count} print items`;
+  if (domain === "cameras") return count === 1 ? "1 offline" : `${count} camera issues`;
+  if (domain === "business") return count === 1 ? "1 follow-up" : `${count} business items`;
+  if (domain === "lab") return count === 1 ? "1 lab issue" : `${count} lab issues`;
+  if (domain === "astro") return count === 1 ? "1 astro window" : `${count} astro items`;
+  if (domain === "knowledge") return count === 1 ? "1 note issue" : `${count} knowledge items`;
+  if (domain === "dev") return count === 1 ? "1 dev need" : `${count} dev needs`;
+  return count === 1 ? "1 situation" : `${count} situations`;
+}
+
 /** Drives the voice level bus with a fake speaking envelope while simulating. */
 function useVoiceSimulation() {
   const sim = useUmbra((s) => s.voiceSim);
@@ -103,6 +135,7 @@ export default function Console() {
   useDeepLink();
   useLiveBridge();
   useDevAttention();
+  useSampleBrainAttention();
   const mode = useUmbra((s) => s.mode);
 
   return (
