@@ -14,125 +14,108 @@ export default async function OpsPage() {
 
   return (
     <main className="h-screen overflow-y-auto bg-[#050607] p-8 text-[#d7e4e8]">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="border border-cyan-400/20 bg-black/30 p-5">
-          <p className="text-xs uppercase tracking-[0.4em] text-cyan-300/70">Umbra Ops</p>
-          <h1 className="mt-2 text-2xl font-light tracking-[0.2em] text-cyan-100">What needs Edward</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            Cross-domain operational surface. Sample-backed for now; actions are dry-run and approval-aware.
-          </p>
+      <div className="mx-auto max-w-5xl space-y-8">
+        <header className="border-b border-cyan-400/20 pb-4">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.45em] text-cyan-300/70">Umbra Ops</p>
+              <h1 className="mt-2 text-xl font-light tracking-[0.22em] text-cyan-100">Needs Edward</h1>
+            </div>
+            <p className="text-xs text-slate-500">
+              sample · {needs.length} needs · {approvals.length} approvals · {view.totals.attention} attention
+            </p>
+          </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <Metric label="needs" value={needs.length} tone="amber" />
-          <Metric label="approvals" value={approvals.length} tone="amber" />
-          <Metric label="attention" value={view.totals.attention} tone="cyan" />
-          <Metric label="situations" value={view.totals.situations} tone="cyan" />
-        </section>
-
-        <Panel title="What changed since I left?">
+        <Section title="What changed">
           {whatChanged.quiet ? (
-            <p className="text-sm text-slate-500">all quiet</p>
+            <Line muted>all quiet</Line>
           ) : (
-            <ul className="space-y-2 text-sm text-slate-300">
-              {whatChanged.lines.map((line) => (
-                <li key={line} className="border-l border-cyan-400/30 pl-3">
-                  <span className={line.startsWith("needs") ? "text-amber-200" : "text-cyan-200"}>{line.split(" · ")[0]}</span>
-                  <span className="text-slate-600"> · </span>
-                  {line.split(" · ").slice(1).join(" · ")}
-                </li>
-              ))}
-            </ul>
+            whatChanged.lines.map((line) => <Line key={line} tone={line.startsWith("needs") ? "amber" : "cyan"}>{line}</Line>)
           )}
-        </Panel>
+        </Section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Approvals">
-            <ul className="space-y-3 text-sm text-slate-300">
-              {approvals.slice(0, 8).map(({ need, action }) => (
-                <li key={`${need.id}:${action.id}`} className="border-l border-amber-300/40 pl-3">
-                  <p><span className="text-amber-200">{action.label}</span> · {action.risk}</p>
-                  <p className="mt-1 text-slate-500">{need.title}</p>
-                  {action.plan && <p className="mt-1 text-slate-600">{action.plan.summary}{action.plan.target ? ` → ${action.plan.target}` : ""}</p>}
-                </li>
-              ))}
-              {!approvals.length && <li className="text-slate-600">none</li>}
-            </ul>
-          </Panel>
+        <Section title="Approvals">
+          {approvals.length ? (
+            approvals.slice(0, 8).map(({ need, action }) => (
+              <Line key={`${need.id}:${action.id}`} tone="amber">
+                {action.label} · {action.risk} · {need.title}
+                {action.plan?.target ? ` · ${action.plan.target}` : ""}
+              </Line>
+            ))
+          ) : (
+            <Line muted>none</Line>
+          )}
+        </Section>
 
-          <Panel title="Sector state">
-            <ul className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-              {view.sectors.map((sector) => (
-                <li key={sector.domain} className="flex justify-between border border-white/10 px-3 py-2">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">{sector.domain}</span>
-                  <span className={statusColor(sector.status)}>{sector.status}</span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        </section>
+        <Section title="Sector state">
+          <div className="grid gap-x-8 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+            {view.sectors.map((sector) => (
+              <div key={sector.domain} className="flex justify-between border-b border-white/5 py-2">
+                <span className="uppercase tracking-[0.22em] text-slate-500">{sector.domain}</span>
+                <span className={statusColor(sector.status)}>{sector.status}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
 
-        <Panel title="Needs Edward">
-          <div className="space-y-4">
+        <Section title="Needs Edward">
+          <div className="space-y-5">
             {needs.map((need) => {
               const decision = triageByNeed.get(need.id);
               return (
-                <article key={need.id} className="border border-white/10 bg-white/[0.02] p-4">
+                <article key={need.id} className="border-b border-white/10 pb-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{need.severity}</p>
-                      <h2 className="mt-1 text-lg text-cyan-100">{need.title}</h2>
-                      <p className="mt-2 text-sm text-amber-100/80">why now: {need.whyNow}</p>
+                      <p className="text-[10px] uppercase tracking-[0.28em] text-slate-600">{need.severity}</p>
+                      <h2 className="mt-1 text-base text-cyan-100">{need.title}</h2>
+                      <p className="mt-2 text-xs text-amber-100/75">{need.whyNow}</p>
                     </div>
-                    {decision && <p className="text-xs text-slate-500">{decision.category} · priority {decision.priority.toFixed(2)} · {decision.source}</p>}
+                    {decision && <p className="text-right text-[10px] text-slate-600">{decision.category} · {decision.priority.toFixed(2)} · {decision.source}</p>}
                   </div>
 
-                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div className="mt-4 grid gap-4 text-xs lg:grid-cols-2">
                     <div>
-                      <h3 className="text-xs uppercase tracking-[0.25em] text-slate-500">Runbooks</h3>
-                      <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                        {need.runbooks.map((runbook) => <li key={runbook.id}>• {runbook.title}</li>)}
-                        {!need.runbooks.length && <li className="text-slate-600">none</li>}
-                      </ul>
+                      <p className="uppercase tracking-[0.25em] text-slate-600">Runbooks</p>
+                      <div className="mt-2 space-y-1 text-slate-400">
+                        {need.runbooks.map((runbook) => <p key={runbook.id}>• {runbook.title}</p>)}
+                        {!need.runbooks.length && <p className="text-slate-700">none</p>}
+                      </div>
                     </div>
                     <div>
-                      <h3 className="text-xs uppercase tracking-[0.25em] text-slate-500">Actions</h3>
-                      <ul className="mt-2 space-y-3 text-sm text-slate-300">
+                      <p className="uppercase tracking-[0.25em] text-slate-600">Actions</p>
+                      <div className="mt-2 space-y-2 text-slate-400">
                         {need.actions.map((action) => (
-                          <li key={action.id} className="border-l border-cyan-400/30 pl-3">
-                            <p><span className="text-cyan-200">{action.label}</span> · {action.risk} · {action.requiresApproval ? "approval required" : "no approval"}</p>
-                            {action.plan && <p className="mt-1 text-slate-500">{action.plan.summary}{action.plan.target ? ` → ${action.plan.target}` : ""}</p>}
-                          </li>
+                          <p key={action.id}>
+                            <span className="text-cyan-200">{action.label}</span> · {action.risk} · {action.requiresApproval ? "approval" : "safe"}
+                            {action.plan?.target ? <span className="text-slate-600"> · {action.plan.target}</span> : null}
+                          </p>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   </div>
                 </article>
               );
             })}
           </div>
-        </Panel>
+        </Section>
       </div>
     </main>
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: "cyan" | "amber" }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border border-white/10 bg-black/30 p-4">
-      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{label}</p>
-      <p className={tone === "amber" ? "mt-2 text-3xl font-light text-amber-100" : "mt-2 text-3xl font-light text-cyan-100"}>{value}</p>
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="border border-white/10 bg-black/30 p-4">
-      <h2 className="mb-4 text-xs uppercase tracking-[0.3em] text-cyan-300/70">{title}</h2>
+    <section>
+      <h2 className="mb-3 border-b border-white/10 pb-2 text-xs uppercase tracking-[0.32em] text-cyan-300/70">{title}</h2>
       {children}
     </section>
   );
+}
+
+function Line({ children, tone, muted = false }: { children: React.ReactNode; tone?: "cyan" | "amber"; muted?: boolean }) {
+  const color = muted ? "text-slate-700" : tone === "amber" ? "text-amber-100/85" : tone === "cyan" ? "text-cyan-100/85" : "text-slate-300";
+  return <p className={`border-l border-cyan-400/20 py-1 pl-3 text-sm ${color}`}>{children}</p>;
 }
 
 function statusColor(status: string) {
