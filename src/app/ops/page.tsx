@@ -1,10 +1,21 @@
 import { buildBrainViewModel } from "@/lib/brain";
+import { createGraph, upsertEdges, upsertNodes } from "@/lib/brain/graph";
 import { createSampleMultiDomainBrain } from "@/lib/domain";
+import { getLiveKnowledgeDomain } from "@/lib/domain/knowledge-server";
 import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
 
 export default async function OpsPage() {
   const now = 1_700_000_000_000;
-  const brain = createSampleMultiDomainBrain(now);
+  const baseBrain = createSampleMultiDomainBrain(now);
+  const liveKnowledge = await getLiveKnowledgeDomain(now);
+  const brain = liveKnowledge.configured && !liveKnowledge.error
+    ? {
+        ...baseBrain,
+        graph: createGraph(upsertNodes(baseBrain.graph.nodes, liveKnowledge.graph.nodes), upsertEdges(baseBrain.graph.edges, liveKnowledge.graph.edges)),
+        situations: [...baseBrain.situations.filter((situation) => !situation.id.startsWith("situation:knowledge:")), ...liveKnowledge.situations],
+        memory: baseBrain.memory,
+      }
+    : baseBrain;
   const needs = await buildOpsNeeds(brain);
   const triage = localTriageOpsNeeds(needs);
   const triageByNeed = new Map(triage.map((item) => [item.needId, item]));
@@ -22,10 +33,20 @@ export default async function OpsPage() {
               <h1 className="mt-2 text-xl font-light tracking-[0.22em] text-cyan-100">Needs Edward</h1>
             </div>
             <p className="text-xs text-slate-500">
-              sample · {needs.length} needs · {approvals.length} approvals · {view.totals.attention} attention
+              sample · {liveKnowledge.configured && !liveKnowledge.error ? `vault ${liveKnowledge.accepted}/${liveKnowledge.rejected}` : "vault sample"} · {needs.length} needs · {approvals.length} approvals · {view.totals.attention} attention
             </p>
           </div>
         </header>
+
+        <Section title="Knowledge">
+          {liveKnowledge.configured && !liveKnowledge.error ? (
+            <Line tone={liveKnowledge.rejected ? "amber" : "cyan"}>
+              {liveKnowledge.accepted} typed notes · {liveKnowledge.rejected} need structure · {liveKnowledge.graph.nodes.length} graph nodes
+            </Line>
+          ) : (
+            <Line muted>{liveKnowledge.error ?? "vault not configured"}</Line>
+          )}
+        </Section>
 
         <Section title="What changed">
           {whatChanged.quiet ? (
