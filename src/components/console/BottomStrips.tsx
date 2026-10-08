@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buildBrainViewModel } from "@/lib/brain";
 import { createSampleMultiDomainBrain } from "@/lib/domain";
@@ -41,10 +42,10 @@ export default function BottomStrips() {
 
       <div className="absolute bottom-[37px] right-[104px] flex gap-[22px] text-[10px] leading-none" aria-label="comms">
         {ops ? (
-          <>
+          <Link href="/ops" className="flex gap-[22px] hover:text-cyan-200" aria-label="open ops">
             <span className="tracking-[2px] text-cyan-300/70">OPS</span>
             <span className="text-dim">{ops.needs} needs · {ops.approvals} approvals · changed</span>
-          </>
+          </Link>
         ) : (
           <>
             <span className="tracking-[2px] text-dim">COMMS</span>
