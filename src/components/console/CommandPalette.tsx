@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUmbra } from "@/lib/store";
 import { needsApproval, runTool, searchTools, type Risk, type Tool } from "@/lib/tools";
+import { CommandRoutePreview } from "./CommandRoutePreview";
 
 const BADGE: Record<Risk, string | null> = { read: null, confirm: "CONFIRM", physical: "APPROVAL" };
 
@@ -167,6 +168,8 @@ function Palette() {
             })}
           </ul>
         )}
+
+        {!pending && <CommandRoutePreview query={query} />}
 
         <div className="flex h-[42px] items-center justify-between border-t border-line px-[22px] text-[9.5px] text-dim">
           <span>{pending ? "⏎ confirm   esc cancel" : "↑↓ select   ⏎ run   esc close"}</span>

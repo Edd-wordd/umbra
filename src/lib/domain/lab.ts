@@ -71,7 +71,7 @@ function deriveLabSituations(graph: BrainGraph, _snapshot: LabSnapshot, now: num
     if (node.type === "job" && node.status === "actionable") {
       situations.push(baseLabSituation("backup_stale", `${node.label} stale`, `${node.label} is stale and should be checked`, [node.id], now));
     }
-    if (node.type === "device" && node.status === "blocked") {
+    if ((node.type === "device" || node.type === "service") && node.status === "blocked") {
       situations.push(baseLabSituation("service_down", `${node.label} down`, `${node.label} is unreachable`, [node.id], now));
     }
   }

@@ -1,21 +1,39 @@
 import { buildBrainViewModel } from "@/lib/brain";
 import { createGraph, upsertEdges, upsertNodes } from "@/lib/brain/graph";
 import { createSampleMultiDomainBrain } from "@/lib/domain";
+import { LAB_DOMAIN_ADAPTER } from "@/lib/domain/lab";
+import { buildDomainPipeline } from "@/lib/domain/pipeline";
 import { getLiveKnowledgeDomain } from "@/lib/domain/knowledge-server";
+import { getLabHealth } from "@/lib/lab/health-server";
+import { labHealthToSnapshot } from "@/lib/lab/health-to-snapshot";
 import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
 
 export default async function OpsPage() {
   const now = 1_700_000_000_000;
   const baseBrain = createSampleMultiDomainBrain(now);
   const liveKnowledge = await getLiveKnowledgeDomain(now);
-  const brain = liveKnowledge.configured && !liveKnowledge.error
-    ? {
-        ...baseBrain,
-        graph: createGraph(upsertNodes(baseBrain.graph.nodes, liveKnowledge.graph.nodes), upsertEdges(baseBrain.graph.edges, liveKnowledge.graph.edges)),
-        situations: [...baseBrain.situations.filter((situation) => !situation.id.startsWith("situation:knowledge:")), ...liveKnowledge.situations],
-        memory: baseBrain.memory,
-      }
-    : baseBrain;
+  const labHealth = await getLabHealth();
+  const liveLab = labHealth.configured ? buildDomainPipeline(LAB_DOMAIN_ADAPTER, labHealthToSnapshot(labHealth), now) : null;
+  let brain = baseBrain;
+  if (liveKnowledge.configured && !liveKnowledge.error) {
+    brain = {
+      ...brain,
+      graph: createGraph(upsertNodes(brain.graph.nodes, liveKnowledge.graph.nodes), upsertEdges(brain.graph.edges, liveKnowledge.graph.edges)),
+      situations: [...brain.situations.filter((situation) => !situation.id.startsWith("situation:knowledge:")), ...liveKnowledge.situations],
+      memory: brain.memory,
+    };
+  }
+  if (liveLab) {
+    brain = {
+      ...brain,
+      graph: createGraph(
+        upsertNodes(brain.graph.nodes.filter((node) => node.domain !== "lab"), liveLab.graph.nodes),
+        upsertEdges(brain.graph.edges.filter((edge) => !edge.from.includes(":lab:") && !edge.to.includes(":lab:")), liveLab.graph.edges),
+      ),
+      situations: [...brain.situations.filter((situation) => !situation.id.startsWith("situation:lab:")), ...liveLab.situations],
+      memory: [...brain.memory.filter((event) => !event.id.includes(":lab:")), ...liveLab.memory],
+    };
+  }
   const needs = await buildOpsNeeds(brain);
   const triage = localTriageOpsNeeds(needs);
   const triageByNeed = new Map(triage.map((item) => [item.needId, item]));
@@ -37,6 +55,18 @@ export default async function OpsPage() {
             </p>
           </div>
         </header>
+
+        <Section title="Lab health">
+          {labHealth.configured ? (
+            labHealth.results.map((result) => (
+              <Line key={result.id} tone={result.ok ? "cyan" : "amber"}>
+                {result.label} · {result.ok ? "ok" : "down"} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
+              </Line>
+            ))
+          ) : (
+            <Line muted>not configured</Line>
+          )}
+        </Section>
 
         <Section title="Knowledge">
           {liveKnowledge.configured && !liveKnowledge.error ? (
