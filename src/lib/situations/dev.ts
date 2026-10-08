@@ -129,7 +129,7 @@ function groupRepoSituations(graph: BrainGraph, situations: Situation[], now: nu
     grouped.push(
       baseSituation({
         id: `situation:dev:project_blocked:${repo}`,
-        type: "blocked_agent",
+        type: "project_blocked",
         title: `${repo} work blocked`,
         sourceTypes: [...new Set(repoSituations.map((s) => s.type))],
         severity: "blocked",

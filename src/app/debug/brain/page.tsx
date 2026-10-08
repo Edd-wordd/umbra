@@ -1,11 +1,25 @@
 import { parseObsidianNote, indexObsidianNotes } from "@/lib/knowledge";
-import { createSampleBrain } from "@/lib/brain";
-import { buildOpsNeeds, buildWhatChanged } from "@/lib/ops";
+import { runArchitectureChecks } from "@/lib/architecture";
+import { buildGraphExamples } from "@/lib/brain";
+import { routeCommandSamples } from "@/lib/commands";
+import { DOMAIN_ADAPTERS, DOMAIN_READINESS, createSampleMultiDomainBrain } from "@/lib/domain";
+import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
 
 export default async function BrainDebugPage() {
   const now = 1_700_000_000_000;
-  const brain = createSampleBrain(now);
+  const brain = createSampleMultiDomainBrain(now);
   const needs = await buildOpsNeeds(brain);
+  const graphExamples = buildGraphExamples(brain.graph);
+  const architectureChecks = await runArchitectureChecks({ graph: brain.graph, situations: brain.situations });
+  const commandRoutes = await routeCommandSamples([
+    "open Proxmox",
+    "restart Immich",
+    "show what changed since I left",
+    "send follow-up to the lead",
+    "check astro gear",
+  ]);
+  const triage = localTriageOpsNeeds(needs);
+  const triageByNeed = new Map(triage.map((decision) => [decision.needId, decision]));
   const whatChanged = buildWhatChanged({ since: now - 60 * 60_000, generatedAt: now, needs, memory: brain.memory });
   const obsidian = indexObsidianNotes([
     parseObsidianNote(
@@ -60,9 +74,20 @@ Umbra's typed graph is the machine memory layer.
           <Metric label="edges" value={brain.graph.edges.length} />
           <Metric label="situations" value={brain.situations.length} />
           <Metric label="ops needs" value={needs.length} />
+          <Metric label="adapters" value={brain.adapterResults.length} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
+          <Panel title="Domain adapters">
+            <ul className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+              {DOMAIN_ADAPTERS.map((adapter) => (
+                <li key={adapter.id} className="flex justify-between border border-white/10 px-3 py-2">
+                  <span>{adapter.label}</span>
+                  <span className={adapter.id === "dev" ? "text-cyan-200" : "text-slate-600"}>{adapter.id === "dev" ? "active" : "stub"}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
           <Panel title="Domain summary">
             <pre className="overflow-auto text-xs text-slate-300">{JSON.stringify(brain.domains, null, 2)}</pre>
           </Panel>
@@ -78,16 +103,84 @@ Umbra's typed graph is the machine memory layer.
           </Panel>
         </section>
 
+        <Panel title="Rail readiness">
+          <div className="overflow-auto">
+            <table className="w-full min-w-[820px] text-left text-xs text-slate-300">
+              <thead className="text-slate-500">
+                <tr className="border-b border-white/10">
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">rail</th>
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">audit</th>
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">adapter</th>
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">actions</th>
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">runbooks</th>
+                  <th className="py-2 pr-3 font-normal uppercase tracking-[0.2em]">bridge</th>
+                  <th className="py-2 font-normal uppercase tracking-[0.2em]">notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {DOMAIN_READINESS.map((rail) => (
+                  <tr key={rail.id} className="border-b border-white/5 align-top">
+                    <td className="py-2 pr-3 text-cyan-100">{rail.label}</td>
+                    <td className="py-2 pr-3"><Readiness value={rail.audit} /></td>
+                    <td className="py-2 pr-3"><Readiness value={rail.adapter} /></td>
+                    <td className="py-2 pr-3"><Readiness value={rail.actions} /></td>
+                    <td className="py-2 pr-3"><Readiness value={rail.runbooks} /></td>
+                    <td className="py-2 pr-3"><Readiness value={rail.bridge} /></td>
+                    <td className="py-2 text-slate-500">{rail.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+
+        <Panel title="Architecture checks">
+          <ul className="space-y-2 text-sm text-slate-300">
+            {architectureChecks.map((check) => (
+              <li key={check.id} className="flex flex-wrap justify-between gap-3 border border-white/10 px-3 py-2">
+                <span>{check.label}</span>
+                <span className={check.status === "pass" ? "text-cyan-200" : check.status === "warn" ? "text-amber-200" : "text-red-300"}>{check.status}</span>
+                <span className="w-full text-xs text-slate-500">{check.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel title="Command routing samples">
+          <ul className="space-y-3 text-sm text-slate-300">
+            {commandRoutes.map((route) => (
+              <li key={route.input} className="border-l border-cyan-400/30 pl-3">
+                <p><span className="text-cyan-200">“{route.input}”</span> → {route.actionId ?? "unresolved"}</p>
+                <p className="mt-1 text-slate-500">
+                  {route.source} · confidence {route.confidence.toFixed(2)} · {route.requiresApproval ? "approval required" : "no approval"} · {route.reason}
+                </p>
+                {route.plan && <p className="mt-1 text-slate-600">{route.plan.summary}{route.plan.target ? ` → ${route.plan.target}` : ""}</p>}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel title="Graph traversals">
+          <ul className="space-y-3 text-sm text-slate-300">
+            {graphExamples.map((item) => (
+              <li key={item.id} className="border-l border-cyan-400/30 pl-3">
+                <p><span className={item.path ? "text-cyan-200" : "text-amber-200"}>{item.title}</span></p>
+                <p className="mt-1 text-slate-500">{item.summary}</p>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
         <Panel title="What changed since I left?">
           {whatChanged.quiet ? (
             <p className="text-sm text-slate-500">all quiet</p>
           ) : (
             <ul className="space-y-2 text-sm text-slate-300">
-              {whatChanged.items.map((item) => (
-                <li key={item.id} className="border-l border-cyan-400/30 pl-3">
-                  <span className={item.severity === "attention" ? "text-amber-200" : "text-cyan-200"}>{item.kind}</span>
+              {whatChanged.lines.map((line) => (
+                <li key={line} className="border-l border-cyan-400/30 pl-3">
+                  <span className={line.startsWith("needs") ? "text-amber-200" : "text-cyan-200"}>{line.split(" · ")[0]}</span>
                   <span className="text-slate-600"> · </span>
-                  {item.summary}
+                  {line.split(" · ").slice(1).join(" · ")}
                 </li>
               ))}
             </ul>
@@ -104,7 +197,20 @@ Umbra's typed graph is the machine memory layer.
                     <h2 className="mt-1 text-lg text-cyan-100">{need.title}</h2>
                     <p className="mt-2 text-sm text-amber-100/80">why now: {need.whyNow}</p>
                   </div>
-                  <p className="text-xs text-slate-500">{need.entities.length} entities · {need.memory.length} memory</p>
+                  <div className="space-y-2 text-right">
+                    <p className="text-xs text-slate-500">{need.entities.length} entities · {need.memory.length} memory</p>
+                    {triageByNeed.get(need.id) && (
+                      <p className="text-xs text-slate-500">
+                        triage: <span className="text-cyan-200">{triageByNeed.get(need.id)?.source}</span>
+                        <span className="text-slate-700"> · </span>
+                        {triageByNeed.get(need.id)?.category}
+                        <span className="text-slate-700"> · </span>
+                        priority {triageByNeed.get(need.id)?.priority.toFixed(2)}
+                        <span className="text-slate-700"> · </span>
+                        {triageByNeed.get(need.id)?.reason}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -151,6 +257,11 @@ function Metric({ label, value }: { label: string; value: number }) {
       <p className="mt-2 text-3xl font-light text-cyan-100">{value}</p>
     </div>
   );
+}
+
+function Readiness({ value }: { value: string }) {
+  const color = value === "active" ? "text-cyan-200" : value === "partial" ? "text-amber-200" : value === "deferred" ? "text-slate-700" : "text-slate-500";
+  return <span className={color}>{value}</span>;
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {

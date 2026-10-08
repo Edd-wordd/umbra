@@ -2,6 +2,7 @@ import { actionRequiresApproval } from "../actions/policy";
 import type { ActionContext } from "../actions/types";
 import type { BrainPipelineResult } from "../brain/pipeline";
 import { getNode } from "../brain/graph";
+import type { BrainNode } from "../brain/types";
 import { eventsForEntity } from "../memory/timeline";
 import { runbooksForSituation } from "../runbooks";
 import { actionsForSituation } from "../situations/actions";
@@ -28,7 +29,7 @@ async function buildNeed(result: BrainPipelineResult, situation: BrainPipelineRe
       label,
       risk: action.risk,
       requiresApproval: actionRequiresApproval(action),
-      plan: await action.dryRun({ ...ctx, args: inferArgs(situation) }),
+      plan: await action.dryRun({ ...ctx, args: inferArgs(situation, entities) }),
     })),
   );
   const memory = situation.entities.flatMap((entity) => eventsForEntity(result.memory, entity));
@@ -45,9 +46,30 @@ async function buildNeed(result: BrainPipelineResult, situation: BrainPipelineRe
   };
 }
 
-function inferArgs(situation: BrainPipelineResult["situations"][number]): Record<string, string> {
+function inferArgs(situation: BrainPipelineResult["situations"][number], entities: BrainNode[]): Record<string, string> {
   const args: Record<string, string> = { situationId: situation.id };
-  const port = situation.summary.match(/:(\d{2,5})|port\s+(\d{2,5})/i)?.[1] ?? situation.whyNow.match(/port\s+(\d{2,5})/i)?.[1];
-  if (port) args.port = port;
+  if (entities[0]) args.entityId = entities[0].id;
+
+  const job = entities.find((entity) => entity.type === "job");
+  if (job) {
+    args.jobId = job.id;
+    args.imageId = job.id;
+  }
+
+  const session = entities.find((entity) => entity.type === "session");
+  if (session) args.sessionId = session.id;
+
+  const device = entities.find((entity) => entity.type === "device");
+  if (device) args.deviceId = device.id;
+
+  const port =
+    entities.find((entity) => typeof entity.meta?.port === "number")?.meta?.port ??
+    situation.summary.match(/:(\d{2,5})|port\s+(\d{2,5})/i)?.[1] ??
+    situation.whyNow.match(/port\s+(\d{2,5})/i)?.[1];
+  if (port) args.port = String(port);
+
+  const pid = entities.find((entity) => typeof entity.meta?.pid === "number")?.meta?.pid;
+  if (pid) args.pid = String(pid);
+
   return args;
 }

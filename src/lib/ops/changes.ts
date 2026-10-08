@@ -18,6 +18,7 @@ export interface WhatChangedSummary {
   since: number;
   generatedAt: number;
   items: WhatChangedItem[];
+  lines: string[];
   quiet: boolean;
 }
 
@@ -63,8 +64,30 @@ export function buildWhatChanged(input: {
     for (const node of diff.removedNodes) items.push(graphItem("removed", node, generatedAt));
   }
 
-  const deduped = dedupe(items).sort((a, b) => (b.at ?? 0) - (a.at ?? 0)).slice(0, input.limit ?? 8);
-  return { since: input.since, generatedAt, items: deduped, quiet: deduped.length === 0 };
+  const deduped = dedupe(items)
+    .sort((a, b) => severityRank(b) - severityRank(a) || (b.at ?? 0) - (a.at ?? 0))
+    .slice(0, input.limit ?? 8);
+  return { since: input.since, generatedAt, items: deduped, lines: formatWhatChangedLines(deduped), quiet: deduped.length === 0 };
+}
+
+export function formatWhatChangedLines(items: readonly WhatChangedItem[]): string[] {
+  if (!items.length) return ["all quiet"];
+
+  const needs = items.filter((item) => item.kind === "need");
+  const knowledge = items.filter((item) => item.summary.includes("indexed note") || item.summary.includes("skipped note"));
+  const other = items.filter((item) => !needs.includes(item) && !knowledge.includes(item));
+  const lines: string[] = [];
+
+  for (const item of needs) lines.push(`needs · ${compactSummary(item.summary)}`);
+
+  if (knowledge.length) {
+    const indexed = knowledge.filter((item) => item.summary.startsWith("indexed note")).length;
+    const skipped = knowledge.filter((item) => item.summary.startsWith("skipped note")).length;
+    lines.push(`knowledge · indexed ${indexed} trusted note${indexed === 1 ? "" : "s"}${skipped ? ` · skipped ${skipped}` : ""}`);
+  }
+
+  for (const item of other) lines.push(`${item.kind} · ${compactSummary(item.summary)}`);
+  return lines.slice(0, 6);
 }
 
 function graphItem(change: "added" | "changed" | "removed", node: BrainNode, at: number): WhatChangedItem {
@@ -76,6 +99,16 @@ function graphItem(change: "added" | "changed" | "removed", node: BrainNode, at:
     at,
     entities: [node.id],
   };
+}
+
+function severityRank(item: WhatChangedItem): number {
+  if (item.severity === "critical") return 3;
+  if (item.severity === "attention") return 2;
+  return 1;
+}
+
+function compactSummary(summary: string): string {
+  return summary.replace(/\s+·\s+/g, " · ").replace(/^brain snapshot · /, "snapshot · ");
 }
 
 function dedupe(items: WhatChangedItem[]): WhatChangedItem[] {

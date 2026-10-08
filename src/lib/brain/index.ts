@@ -6,3 +6,4 @@ export * from "./queries";
 export * from "./snapshot";
 export * from "./pipeline";
 export * from "./sample";
+export * from "./examples";
