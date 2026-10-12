@@ -1,3 +1,7 @@
+import { ApprovalDecisionButtons } from "./ApprovalDecisionButtons";
+import { ExecuteActionButton } from "./ExecuteActionButton";
+import { getExecutionReadiness } from "@/lib/actions/readiness";
+import { readApprovalRequestsFile } from "@/lib/approvals/store-server";
 import { buildBrainViewModel } from "@/lib/brain";
 import { createGraph, upsertEdges, upsertNodes } from "@/lib/brain/graph";
 import { createSampleMultiDomainBrain } from "@/lib/domain";
@@ -5,6 +9,8 @@ import { LAB_DOMAIN_ADAPTER } from "@/lib/domain/lab";
 import { buildDomainPipeline } from "@/lib/domain/pipeline";
 import { getLiveKnowledgeDomain } from "@/lib/domain/knowledge-server";
 import { getLabHealth } from "@/lib/lab/health-server";
+import { listMemoryEvents } from "@/lib/memory";
+import { readJournalEvents } from "@/lib/memory/journal-server";
 import { labHealthToSnapshot } from "@/lib/lab/health-to-snapshot";
 import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
 
@@ -39,7 +45,11 @@ export default async function OpsPage() {
   const triageByNeed = new Map(triage.map((item) => [item.needId, item]));
   const whatChanged = buildWhatChanged({ since: now - 60 * 60_000, generatedAt: now, needs, memory: brain.memory, limit: 6 });
   const view = buildBrainViewModel(brain);
+  const queuedApprovals = await readApprovalRequestsFile();
+  const pendingQueuedApprovals = queuedApprovals.filter((approval) => approval.status === "pending");
+  const decidedQueuedApprovals = queuedApprovals.filter((approval) => approval.status !== "pending").slice(0, 6);
   const approvals = needs.flatMap((need) => need.actions.filter((action) => action.requiresApproval).map((action) => ({ need, action })));
+  const recentActionEvents = [...(await readJournalEvents(12)), ...listMemoryEvents(8)].filter((event) => event.type.startsWith("action.")).slice(0, 8);
 
   return (
     <main className="h-screen overflow-y-auto bg-[#050607] p-8 text-[#d7e4e8]">
@@ -51,10 +61,22 @@ export default async function OpsPage() {
               <h1 className="mt-2 text-xl font-light tracking-[0.22em] text-cyan-100">Needs Edward</h1>
             </div>
             <p className="text-xs text-slate-500">
-              sample · {liveKnowledge.configured && !liveKnowledge.error ? `vault ${liveKnowledge.accepted}/${liveKnowledge.rejected}` : "vault sample"} · {needs.length} needs · {approvals.length} approvals · {view.totals.attention} attention
+              sample · {liveKnowledge.configured && !liveKnowledge.error ? `vault ${liveKnowledge.accepted}/${liveKnowledge.rejected}` : "vault sample"} · {needs.length} needs · {approvals.length + pendingQueuedApprovals.length} approvals · {view.totals.attention} attention
             </p>
           </div>
         </header>
+
+        <Section title="Recent actions">
+          {recentActionEvents.length ? (
+            recentActionEvents.map((event) => (
+              <Line key={event.id} tone={event.result === "denied" || event.result === "error" ? "amber" : "cyan"}>
+                {event.type.replace("action.", "")} · {event.result} · {event.summary}
+              </Line>
+            ))
+          ) : (
+            <Line muted>none</Line>
+          )}
+        </Section>
 
         <Section title="Lab health">
           {labHealth.configured ? (
@@ -87,16 +109,28 @@ export default async function OpsPage() {
         </Section>
 
         <Section title="Approvals">
-          {approvals.length ? (
-            approvals.slice(0, 8).map(({ need, action }) => (
-              <Line key={`${need.id}:${action.id}`} tone="amber">
-                {action.label} · {action.risk} · {need.title}
-                {action.plan?.target ? ` · ${action.plan.target}` : ""}
+          {pendingQueuedApprovals.map((approval) => (
+            <Line key={approval.id} tone="amber">
+              queued · {approval.actionLabel} · {approval.risk} · {approval.plan.target ?? approval.actionId}
+              <ApprovalDecisionButtons id={approval.id} />
+            </Line>
+          ))}
+          {decidedQueuedApprovals.map((approval) => {
+            const readiness = getExecutionReadiness(approval);
+            return (
+              <Line key={approval.id} tone={readiness.ready ? "cyan" : "amber"}>
+                {approval.status} · {approval.actionLabel} · {approval.risk} · {approval.plan.target ?? approval.actionId} · {readiness.reason}
+                {readiness.ready && <ExecuteActionButton actionId={approval.actionId} approvalId={approval.id} />}
               </Line>
-            ))
-          ) : (
-            <Line muted>none</Line>
-          )}
+            );
+          })}
+          {approvals.slice(0, 8).map(({ need, action }) => (
+            <Line key={`${need.id}:${action.id}`} tone="amber">
+              suggested · {action.label} · {action.risk} · {need.title}
+              {action.plan?.target ? ` · ${action.plan.target}` : ""}
+            </Line>
+          ))}
+          {!pendingQueuedApprovals.length && !decidedQueuedApprovals.length && !approvals.length && <Line muted>none</Line>}
         </Section>
 
         <Section title="Sector state">

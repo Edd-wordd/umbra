@@ -30,3 +30,6 @@ npm-debug.log*
 /helper/umbra.helper.json
 /helper/logs/
 /helper/dist/
+
+# Umbra local runtime state
+.umbra/runtime/

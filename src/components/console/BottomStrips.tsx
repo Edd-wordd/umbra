@@ -2,9 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { buildBrainViewModel } from "@/lib/brain";
-import { createSampleMultiDomainBrain } from "@/lib/domain";
-import { buildOpsNeeds } from "@/lib/ops";
 import { useUmbra } from "@/lib/store";
 
 /** Bottom chrome: ⌘K hint (left), Focus strip (center), Comms strip (right). SAMPLE values. */
@@ -60,13 +57,12 @@ export default function BottomStrips() {
 function useSampleOpsStrip() {
   const [ops, setOps] = useState<{ needs: number; approvals: number } | null>(null);
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get("brain") !== "sample") return;
-    const brain = createSampleMultiDomainBrain(Date.now());
-    const vm = buildBrainViewModel(brain);
-    buildOpsNeeds(brain).then((needs) => {
-      setOps({ needs: needs.length, approvals: vm.totals.approvals });
-    });
+    fetch("/api/ops/summary", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((summary: { needs: number; approvals: number } | null) => {
+        if (summary) setOps({ needs: summary.needs, approvals: summary.approvals });
+      })
+      .catch(() => setOps(null));
   }, []);
   return ops;
 }

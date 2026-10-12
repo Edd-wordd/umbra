@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { routeCommand } from "@/lib/commands";
 import type { CommandRoute } from "@/lib/commands/types";
 
-export function CommandRoutePreview({ query }: { query: string }) {
+export function CommandRoutePreview({ query, onPrepare }: { query: string; onPrepare?: (route: CommandRoute) => void }) {
   const [route, setRoute] = useState<CommandRoute | null>(null);
 
   useEffect(() => {
@@ -32,8 +32,15 @@ export function CommandRoutePreview({ query }: { query: string }) {
         {route.plan.summary}
         {route.plan.target ? ` → ${route.plan.target}` : ""}
       </div>
-      <div className={route.requiresApproval ? "mt-[6px] text-attention" : "mt-[6px] text-mid"}>
-        {route.action.risk} · {route.requiresApproval ? "approval required" : "no approval"}
+      <div className="mt-[8px] flex items-center justify-between gap-[12px]">
+        <div className={route.requiresApproval ? "text-attention" : "text-mid"}>
+          {route.action.risk} · {route.requiresApproval ? "approval required" : "no approval"}
+        </div>
+        {onPrepare && (
+          <button type="button" onClick={() => onPrepare(route)} className="border border-line px-[10px] py-[4px] tracking-[1.5px] text-dim hover:border-active hover:text-active">
+            PREPARE
+          </button>
+        )}
       </div>
     </div>
   );
