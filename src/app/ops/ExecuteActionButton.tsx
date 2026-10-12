@@ -15,6 +15,7 @@ export function ExecuteActionButton({ actionId, approvalId }: { actionId: string
     })
       .then((res) => res.json())
       .catch(() => ({ ok: false, message: "execute request failed" }));
+    if (result.instruction?.type === "open_url") window.open(result.instruction.url, "_blank", "noopener,noreferrer");
     setMessage(result.message ?? result.error ?? "unknown result");
     setState(result.ok ? "done" : "failed");
   }

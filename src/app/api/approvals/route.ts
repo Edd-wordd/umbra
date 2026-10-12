@@ -1,6 +1,8 @@
 import { createApprovalId } from "@/lib/approvals";
 import { addApprovalRequestFile, decideApprovalRequestFile, readApprovalRequestsFile } from "@/lib/approvals/store-server";
 import { getAction } from "@/lib/actions";
+import { createMemoryEvent } from "@/lib/memory/events";
+import { appendJournalEvents } from "@/lib/memory/journal-server";
 import { actionRequiresApproval } from "@/lib/actions/policy";
 
 export const runtime = "nodejs";
@@ -15,6 +17,7 @@ export async function POST(req: Request) {
   if (body?.id && body.decision) {
     const approval = await decideApprovalRequestFile(body.id, body.decision);
     if (!approval) return Response.json({ error: "approval not found" }, { status: 404 });
+    await appendJournalEvents([createMemoryEvent({ source: "local-policy", actor: "edward", type: body.decision === "approved" ? "approval.issued" : "approval.denied", summary: `${body.decision} · ${approval.actionLabel}`, result: body.decision === "approved" ? "ok" : "denied", actionId: approval.actionId, raw: approval })]);
     return Response.json({ approval });
   }
   if (!body?.actionId) return Response.json({ error: "actionId required" }, { status: 400 });
@@ -33,5 +36,6 @@ export async function POST(req: Request) {
     requestedAt: now,
     source: body.source ?? "cmdk",
   });
+  await appendJournalEvents([createMemoryEvent({ source: "local-policy", actor: "umbra", type: "approval.issued", summary: `requested approval · ${request.actionLabel}`, result: "pending", actionId: request.actionId, raw: request, at: now })]);
   return Response.json({ approval: request });
 }

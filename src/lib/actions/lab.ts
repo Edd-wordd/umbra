@@ -1,5 +1,10 @@
 import type { UmbraAction } from "./types";
 
+function openLabUrl(label: string, url: string | undefined) {
+  if (!url) return { ok: false, message: `${label} URL is not configured` };
+  return { ok: true, message: `Open ${label}`, instruction: { type: "open_url" as const, url } };
+}
+
 export const LAB_ACTIONS: UmbraAction[] = [
   {
     id: "lab.proxmox.open",
@@ -7,8 +12,28 @@ export const LAB_ACTIONS: UmbraAction[] = [
     description: "Open the Proxmox UI.",
     domain: "lab",
     risk: "read",
-    dryRun: () => ({ summary: "Open Proxmox UI", target: "Proxmox", expectedResult: "Proxmox opens in the browser." }),
-    execute: () => ({ ok: true, message: "Proxmox open prepared; browser execution comes later" }),
+    dryRun: () => ({ summary: "Open Proxmox UI", target: process.env.UMBRA_LAB_PROXMOX_URL ?? "Proxmox", expectedResult: "Proxmox opens in the browser." }),
+    execute: () => openLabUrl("Proxmox", process.env.UMBRA_LAB_PROXMOX_URL),
+    approvalPolicy: "none",
+  },
+  {
+    id: "lab.adguard.open",
+    label: "Open AdGuard",
+    description: "Open the AdGuard UI.",
+    domain: "lab",
+    risk: "read",
+    dryRun: () => ({ summary: "Open AdGuard UI", target: process.env.UMBRA_LAB_ADGUARD_URL ?? "AdGuard", expectedResult: "AdGuard opens in the browser." }),
+    execute: () => openLabUrl("AdGuard", process.env.UMBRA_LAB_ADGUARD_URL),
+    approvalPolicy: "none",
+  },
+  {
+    id: "lab.n8n.open",
+    label: "Open n8n",
+    description: "Open the n8n UI.",
+    domain: "lab",
+    risk: "read",
+    dryRun: () => ({ summary: "Open n8n UI", target: process.env.UMBRA_LAB_N8N_URL ?? "n8n", expectedResult: "n8n opens in the browser." }),
+    execute: () => openLabUrl("n8n", process.env.UMBRA_LAB_N8N_URL),
     approvalPolicy: "none",
   },
   {

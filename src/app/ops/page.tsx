@@ -13,6 +13,7 @@ import { listMemoryEvents } from "@/lib/memory";
 import { readJournalEvents } from "@/lib/memory/journal-server";
 import { labHealthToSnapshot } from "@/lib/lab/health-to-snapshot";
 import { buildOpsNeeds, buildWhatChanged, localTriageOpsNeeds } from "@/lib/ops";
+import { getOpsTimeline } from "@/lib/ops/timeline-server";
 
 export default async function OpsPage() {
   const now = 1_700_000_000_000;
@@ -49,7 +50,10 @@ export default async function OpsPage() {
   const pendingQueuedApprovals = queuedApprovals.filter((approval) => approval.status === "pending");
   const decidedQueuedApprovals = queuedApprovals.filter((approval) => approval.status !== "pending").slice(0, 6);
   const approvals = needs.flatMap((need) => need.actions.filter((action) => action.requiresApproval).map((action) => ({ need, action })));
-  const recentActionEvents = [...(await readJournalEvents(12)), ...listMemoryEvents(8)].filter((event) => event.type.startsWith("action.")).slice(0, 8);
+  const journalEvents = await readJournalEvents(24);
+  const recentActionEvents = [...journalEvents, ...listMemoryEvents(8)].filter((event) => event.type.startsWith("action.")).slice(0, 8);
+  const latestKnowledgeNote = journalEvents.find((event) => event.actionId?.startsWith("knowledge.") && event.result === "ok");
+  const timeline = await getOpsTimeline(16);
 
   return (
     <main className="h-screen overflow-y-auto bg-[#050607] p-8 text-[#d7e4e8]">
@@ -65,6 +69,19 @@ export default async function OpsPage() {
             </p>
           </div>
         </header>
+
+        <Section title="Timeline">
+          {timeline.length ? (
+            timeline.map((item) => (
+              <Line key={item.id} tone={item.tone === "muted" ? undefined : item.tone}>
+                {formatTime(item.at)} · {item.kind.replace("action.", "").replace("approval.", "approval ")} · {item.summary}
+                {item.detail ? ` · ${item.detail}` : ""}
+              </Line>
+            ))
+          ) : (
+            <Line muted>none</Line>
+          )}
+        </Section>
 
         <Section title="Recent actions">
           {recentActionEvents.length ? (
@@ -94,6 +111,7 @@ export default async function OpsPage() {
           {liveKnowledge.configured && !liveKnowledge.error ? (
             <Line tone={liveKnowledge.rejected ? "amber" : "cyan"}>
               {liveKnowledge.accepted} typed notes · {liveKnowledge.rejected} need structure · {liveKnowledge.graph.nodes.length} graph nodes
+              {latestKnowledgeNote ? ` · latest ${latestKnowledgeNote.summary.replace(/^created /, "")}` : ""}
             </Line>
           ) : (
             <Line muted>{liveKnowledge.error ?? "vault not configured"}</Line>
@@ -201,6 +219,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Line({ children, tone, muted = false }: { children: React.ReactNode; tone?: "cyan" | "amber"; muted?: boolean }) {
   const color = muted ? "text-slate-700" : tone === "amber" ? "text-amber-100/85" : tone === "cyan" ? "text-cyan-100/85" : "text-slate-300";
   return <p className={`border-l border-cyan-400/20 py-1 pl-3 text-sm ${color}`}>{children}</p>;
+}
+
+function formatTime(at: number) {
+  return new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(new Date(at));
 }
 
 function statusColor(status: string) {

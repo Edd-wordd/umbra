@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { buildBrainViewModel } from "@/lib/brain";
 import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
 import { streamSampleEvents } from "@/lib/mock/events";
-import { createSampleMultiDomainBrain } from "@/lib/domain";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
@@ -89,22 +87,33 @@ function useDevAttention() {
   }, []);
 }
 
-/** Visual integration test: maps the sample multi-domain brain model into the existing core sector attention. */
-function useSampleBrainAttention() {
+type BrainSummary = {
+  domains: Array<{ id: string; status: string; needs: number; notes: string[] }>;
+};
+
+/** Maps the server brain summary into the existing core sector attention. */
+function useBrainSummaryAttention() {
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get("brain") !== "sample") return;
-    const vm = buildBrainViewModel(createSampleMultiDomainBrain(Date.now()));
-    for (const sector of vm.sectors) {
-      if (!(DOMAINS as readonly string[]).includes(sector.domain)) continue;
-      const domain = sector.domain as DomainId;
-      const note = sectorNote(sector.domain, sector.situations.length);
-      if (sector.status === "blocked" || sector.status === "critical") {
-        useUmbra.getState().setAttention(domain, { level: "broken", note });
-      } else if (!["silent", "fyi"].includes(sector.status)) {
-        useUmbra.getState().setAttention(domain, { level: "attention", note });
-      }
-    }
+    let cancelled = false;
+    fetch("/api/brain/summary", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((summary: BrainSummary | null) => {
+        if (cancelled || !summary) return;
+        for (const sector of summary.domains) {
+          if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
+          const domain = sector.id as DomainId;
+          const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
+          if (sector.status === "blocked" || sector.status === "critical") {
+            useUmbra.getState().setAttention(domain, { level: "broken", note });
+          } else if (!["silent", "fyi"].includes(sector.status)) {
+            useUmbra.getState().setAttention(domain, { level: "attention", note });
+          }
+        }
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 }
 
@@ -135,7 +144,7 @@ export default function Console() {
   useDeepLink();
   useLiveBridge();
   useDevAttention();
-  useSampleBrainAttention();
+  useBrainSummaryAttention();
   const mode = useUmbra((s) => s.mode);
 
   return (

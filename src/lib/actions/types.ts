@@ -19,6 +19,12 @@ export interface ActionPlan {
   expectedResult?: string;
   rollbackHint?: string;
   warnings?: string[];
+  preview?: string;
+}
+
+export interface ActionInstruction {
+  type: "open_url";
+  url: string;
 }
 
 export interface ActionResult {
@@ -26,6 +32,7 @@ export interface ActionResult {
   message: string;
   verified?: boolean;
   memory?: MemoryEvent[];
+  instruction?: ActionInstruction;
 }
 
 export interface UmbraAction {

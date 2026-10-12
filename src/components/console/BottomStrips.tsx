@@ -41,7 +41,9 @@ export default function BottomStrips() {
         {ops ? (
           <Link href="/ops" className="flex gap-[22px] hover:text-cyan-200" aria-label="open ops">
             <span className="tracking-[2px] text-cyan-300/70">OPS</span>
-            <span className="text-dim">{ops.needs} needs · {ops.approvals} approvals · changed</span>
+            <span className="text-dim">
+              {ops.needs} needs · {ops.approvals} approvals{ops.latest ? ` · ${ops.latest.kind.replace("action.", "").replace("approval.", "approval ")}` : " · live"}
+            </span>
           </Link>
         ) : (
           <>
@@ -55,12 +57,12 @@ export default function BottomStrips() {
 }
 
 function useSampleOpsStrip() {
-  const [ops, setOps] = useState<{ needs: number; approvals: number } | null>(null);
+  const [ops, setOps] = useState<{ needs: number; approvals: number; latest?: { kind: string; at: number } | null } | null>(null);
   useEffect(() => {
     fetch("/api/ops/summary", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
-      .then((summary: { needs: number; approvals: number } | null) => {
-        if (summary) setOps({ needs: summary.needs, approvals: summary.approvals });
+      .then((summary: { needs: number; approvals: number; latest?: { kind: string; at: number } | null } | null) => {
+        if (summary) setOps({ needs: summary.needs, approvals: summary.approvals, latest: summary.latest });
       })
       .catch(() => setOps(null));
   }, []);
