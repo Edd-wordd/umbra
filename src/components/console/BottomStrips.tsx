@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useUmbra } from "@/lib/store";
 
 /** Bottom chrome: ⌘K hint (left), Focus strip (center), Comms strip (right). SAMPLE values. */
@@ -7,6 +9,7 @@ export default function BottomStrips() {
   const mode = useUmbra((s) => s.mode);
   const openPalette = useUmbra((s) => s.openPalette);
   const dim = mode !== "idle";
+  const ops = useSampleOpsStrip();
   return (
     <div className="transition-opacity duration-300" style={{ opacity: dim ? 0.6 : 1 }}>
       <button
@@ -35,9 +38,33 @@ export default function BottomStrips() {
       )}
 
       <div className="absolute bottom-[37px] right-[104px] flex gap-[22px] text-[10px] leading-none" aria-label="comms">
-        <span className="tracking-[2px] text-dim">COMMS</span>
-        <span className="text-dim">2 unread · 0 urgent</span>
+        {ops ? (
+          <Link href="/ops" className="flex gap-[22px] hover:text-cyan-200" aria-label="open ops">
+            <span className="tracking-[2px] text-cyan-300/70">OPS</span>
+            <span className="text-dim">
+              {ops.needs} needs · {ops.approvals} approvals{ops.latest ? ` · ${ops.latest.kind.replace("action.", "").replace("approval.", "approval ")}` : " · live"}
+            </span>
+          </Link>
+        ) : (
+          <>
+            <span className="tracking-[2px] text-dim">COMMS</span>
+            <span className="text-dim">2 unread · 0 urgent</span>
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+function useSampleOpsStrip() {
+  const [ops, setOps] = useState<{ needs: number; approvals: number; latest?: { kind: string; at: number } | null } | null>(null);
+  useEffect(() => {
+    fetch("/api/ops/summary", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((summary: { needs: number; approvals: number; latest?: { kind: string; at: number } | null } | null) => {
+        if (summary) setOps({ needs: summary.needs, approvals: summary.approvals, latest: summary.latest });
+      })
+      .catch(() => setOps(null));
+  }, []);
+  return ops;
 }

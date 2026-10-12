@@ -96,8 +96,15 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 - [ ] RTSP / source decision locked (see Open decisions)
 
 ### Knowledge (Obsidian)
-- [x] Obsidian vault as the Knowledge layer (plain markdown, links become mesh edges)
+- [x] Obsidian vault as the human-readable Knowledge layer
+- [ ] Treat Obsidian as an authoring layer, **not** the graph database
+- [x] Define Obsidian vault ontology/templates before large-scale note ingestion ([`docs/obsidian-knowledge-layer.md`](./docs/obsidian-knowledge-layer.md))
+- [x] Define note types: project, area, resource, runbook, decision, incident, session_log, device, person, lead, service
+- [x] Define semantic frontmatter fields and stable `umbra_id` conventions
+- [x] Define wikilink/frontmatter → brain edge mapping
 - [ ] Vault sync path the bridge can read (Syncthing to Proxmox or git)
+- [ ] Build Obsidian indexer: typed notes → graph nodes; semantic links/frontmatter → typed edges
+- [ ] Build graph query tools for agents: neighbors, paths, related runbooks, related decisions, prior incidents
 - [ ] Read, search, open, and write notes ("log tonight's session")
 
 ### Mac helper (device agent)
@@ -143,11 +150,15 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
 ## 4b. Foundations to decide before wiring (avoid later pain)
 
+- [x] **Kernel plan**: Phase 0 architecture captured in [`docs/umbra-kernel.md`](./docs/umbra-kernel.md)
+- [x] **Knowledge graph ontology**: initial entity types, edge types, stable IDs, and relationship semantics defined before indexing Obsidian
+- [x] **Graph traversal tooling**: initial explicit multi-hop queries added instead of grepping YAML or dumping markdown into context
+- [x] **Obsidian as authoring layer**: markdown notes feed the graph, but Umbra's typed graph is the machine memory layer
 - [ ] **One tool layer**: every action defined once, used by buttons, voice, and Cmd-K
 - [ ] **Network access**: Tailscale on Proxmox, Pi, and Mac instead of open ports
 - [ ] **Safety on physical actions**: approval levels, hard limits the AI can't override (mount, power, print), audit log
 - [ ] **Secrets in one place**: Supabase Vault, 1Password, or Doppler
-- [ ] **Brain graph data model**: nodes are real things (repo, device, note, lead, session) with live state and defined edges
+- [x] **Brain graph data model**: initial typed nodes/edges model added for real things (repo, device, note, lead, session) with live state and defined edges
 - [ ] **Offline Astro**: Pi keeps working at a dark site with no internet, syncs later
 - [ ] **Cost control**: local wake word so cloud voice and LLM only run when spoken to
 
@@ -189,28 +200,36 @@ Use `- [ ]` / `- [x]` to track progress. Update this file as decisions lock.
 
 ## 6. Build phases (order)
 
-- [x] **Phase 0 — Foundations**  
+- [x] **Phase 0a — UI foundations**  
   Repo, Next.js shell, DESIGN constraints, near-black silent canvas, mono type, grid
-- [ ] **Phase 1 — Core brain**  
-  R3F system core; idle breathing, voice-reactive glow; domain sectors from the graph model
-- [ ] **Phase 2 — Local bridge + Homelab**  
-  Tailscale, tool layer, activity log, health checks, Mac helper; bridge to Proxmox / Docker / AdGuard; Dev rail (GitHub, Sentry, PostHog, Figma)
-- [ ] **Phase 3 — Voice layer + Cmd-K**  
-  LiveKit Agents, local wake word, tool calling + risk approval, command palette
-- [ ] **Phase 4 — Print + Focus/Ops + Comms strips**  
-  CUPS/LPR print rail; compact ops + small comms
-- [ ] **Phase 5 — Astro rail**  
-  INDI / OnStep / A7 II; Parallax targets; mesh→orrery morph; weather when chosen
-- [ ] **Phase 6 — Business rail**  
-  Deadbridge Frappe CRM leads (Casa Plasencio still deferred)
-- [ ] **Phase 7 — Knowledge**  
-  Obsidian vault → mesh, read/search/write notes
-- [ ] **Phase 8 — Cameras**  
-  After RTSP / source decision
-- [ ] **Phase 9 — Life Ops**  
-  Apple Health export (last among life surfaces)
-- [ ] **Phase 10 — Desk robot**  
-  Later phase; not blocking earlier rails
+- [x] **Phase 0b — Kernel / ontology planning**  
+  Product stance, core primitives, status/risk taxonomies, ontology, graph semantics, traversal design, situation model, action lifecycle, memory model, Obsidian role, build order. See [`docs/umbra-kernel.md`](./docs/umbra-kernel.md).
+- [x] **Phase 1 — Typed brain graph**  
+  Initial `src/lib/brain` foundation: typed nodes, edges, stable IDs, graph queries, traversal helpers, graph snapshots, sample brain pipeline.
+- [ ] **Phase 2 — Dev graph adapter + situations**  
+  Convert existing Dev sample/live data into graph entities/signals. Initial adapter and situations exist; expand grouping/lifecycle for blocked agent, failed CI, stale port, dirty repo, local-only work at risk, service attention.
+- [ ] **Phase 3 — Action/tool kernel**  
+  Implement one action lifecycle used by buttons, Cmd-K, voice, agents, and runbooks. Add dry-run, risk check, approval, verify, audit.
+- [ ] **Phase 4 — Memory/timeline**  
+  Initial MemoryEvent model and timeline helpers exist. Expand into situation replay and "What changed since I left?"
+- [ ] **Phase 5 — Visual brain from graph**  
+  Render the center system core from real graph state: domains, entities, relationships, situations, attention color, voice pulse, Astro orrery path.
+- [ ] **Phase 6 — Obsidian typed authoring layer**  
+  Define vault templates, parse typed markdown/frontmatter, map notes to graph nodes, map semantic links to graph edges, expose graph query tools to agents.
+- [ ] **Phase 7 — Homelab + Network**  
+  Proxmox, Docker, AdGuard, Tailscale, service health, backup state, runbooks.
+- [ ] **Phase 8 — Print**  
+  CUPS/LPR, Canon PRO-1000, queue, readiness check, print staging, physical-action approval.
+- [ ] **Phase 9 — Astro**  
+  INDI, OnStep, Sony A7 II, Parallax targets, weather, readiness check, mesh → orrery.
+- [ ] **Phase 10 — Business**  
+  Deadbridge Frappe leads, lead scoring, draft follow-up, no auto-send without approval.
+- [ ] **Phase 11 — Cameras**  
+  RTSP/source health and minimal camera surfaces.
+- [ ] **Phase 12 — Life Ops**  
+  Apple Health export ingestion, last.
+- [ ] **Phase 13 — Desk robot**  
+  Later phase only.
 
 ---
 

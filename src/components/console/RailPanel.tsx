@@ -5,6 +5,7 @@ import { RAIL_SAMPLE, getRail, type Tone } from "@/lib/rails";
 import { railOf, useUmbra } from "@/lib/store";
 import { formatClock } from "@/lib/time";
 import DevFocus from "./devfocus/DevFocus";
+import KnowledgeRailContent from "./KnowledgeRailContent";
 
 const TONE: Record<Tone, string> = {
   ink: "text-ink",
@@ -95,7 +96,7 @@ export default function RailPanel() {
           <p className="mt-[8px] text-[9.5px] text-dim">touched {formatClock(new Date(since))} · esc / 20s idle to collapse</p>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
-          {content.sections.map((sec) => (
+          {id === "knowledge" ? <KnowledgeRailContent openPalette={openPalette} /> : content.sections.map((sec) => (
             <div key={sec.title} className="mt-[20px] border-t border-line pt-[12px]">
               <div className="flex justify-between text-[9.5px]">
                 <span className="tracking-[2px] text-mid">{sec.title}</span>
@@ -120,8 +121,8 @@ export default function RailPanel() {
         </div>
         <footer className="flex items-center justify-between border-t border-line px-5 py-[14px] text-[10px]">
           <div className="flex gap-[16px]">
-            {content.actions.length === 0 && <span className="text-ghost">no actions yet</span>}
-            {content.actions.map((a) => (
+            {id === "knowledge" ? <span className="text-ghost">approved writes only</span> : content.actions.length === 0 && <span className="text-ghost">no actions yet</span>}
+            {id !== "knowledge" && content.actions.map((a) => (
               <button
                 key={a.toolId}
                 type="button"

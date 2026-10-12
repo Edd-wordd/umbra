@@ -1,0 +1,117 @@
+import type { UmbraAction } from "./types";
+
+export const DEV_ACTIONS: UmbraAction[] = [
+  {
+    id: "dev.port.free",
+    label: "Free port",
+    description: "Prepare or execute a local process kill for a stale dev port.",
+    domain: "dev",
+    risk: "local-risky",
+    keywords: ["port", "kill", "stale", "free"],
+    dryRun: (ctx) => {
+      const port = ctx.args?.port ?? "unknown";
+      const pid = ctx.args?.pid ?? "unknown";
+      return {
+        summary: `Free port ${port}`,
+        target: `localhost:${port}`,
+        command: pid === "unknown" ? `lsof -nP -iTCP:${port} -sTCP:LISTEN` : `kill ${pid}`,
+        expectedResult: `Port ${port} becomes available or the owning dev server is restarted.`,
+        rollbackHint: "Restart the dev server from the project session if the process was needed.",
+        warnings: ["Only approve if the process is stale or orphaned."],
+      };
+    },
+    execute: () => ({ ok: false, message: "dev.port.free is not wired to the bridge executor yet" }),
+  },
+  {
+    id: "dev.ci.rerun",
+    label: "Rerun CI",
+    description: "Rerun a failing CI workflow.",
+    domain: "dev",
+    risk: "external",
+    keywords: ["ci", "rerun", "github", "workflow"],
+    dryRun: (ctx) => ({
+      summary: "Rerun CI workflow",
+      target: String(ctx.args?.runId ?? "selected failing run"),
+      expectedResult: "A new CI attempt starts on the external provider.",
+      rollbackHint: "No rollback; cancel the workflow from the provider if needed.",
+    }),
+    execute: () => ({ ok: false, message: "dev.ci.rerun is not wired to the provider executor yet" }),
+  },
+  {
+    id: "dev.sessions.resume",
+    label: "Open agent session",
+    description: "Open or focus the terminal/agent session related to a situation.",
+    domain: "dev",
+    risk: "read",
+    keywords: ["session", "agent", "open", "focus"],
+    dryRun: (ctx) => ({
+      summary: "Open related agent session",
+      target: String(ctx.args?.sessionId ?? "selected session"),
+      expectedResult: "The relevant transcript/session is shown.",
+    }),
+    execute: () => ({ ok: true, message: "session focus prepared; UI wiring comes later" }),
+    approvalPolicy: "none",
+  },
+  {
+    id: "dev.agent.approve",
+    label: "Approve agent prompt",
+    description: "Approve a blocked agent prompt after showing the exact prompt context.",
+    domain: "dev",
+    risk: "local-risky",
+    keywords: ["agent", "approve", "prompt", "yes"],
+    dryRun: (ctx) => ({
+      summary: "Approve blocked agent prompt",
+      target: String(ctx.args?.agentId ?? "selected agent"),
+      command: "agent.respond approve",
+      expectedResult: "The blocked agent receives approval and continues.",
+      rollbackHint: "Stop the agent or revert its diff if the approved action was wrong.",
+      warnings: ["Only approve after reading the prompt and target workspace."],
+    }),
+    execute: () => ({ ok: false, message: "dev.agent.approve is not wired to the bridge executor yet" }),
+  },
+  {
+    id: "dev.agent.deny",
+    label: "Deny agent prompt",
+    description: "Deny a blocked agent prompt.",
+    domain: "dev",
+    risk: "local-safe",
+    keywords: ["agent", "deny", "prompt", "no"],
+    dryRun: (ctx) => ({
+      summary: "Deny blocked agent prompt",
+      target: String(ctx.args?.agentId ?? "selected agent"),
+      command: "agent.respond deny",
+      expectedResult: "The blocked agent is denied and stops or asks for another path.",
+    }),
+    execute: () => ({ ok: false, message: "dev.agent.deny is not wired to the bridge executor yet" }),
+  },
+  {
+    id: "dev.ci.open",
+    label: "Open failing CI",
+    description: "Open the failing CI run details.",
+    domain: "dev",
+    risk: "read",
+    keywords: ["ci", "open", "failing", "run"],
+    dryRun: (ctx) => ({
+      summary: "Open failing CI run",
+      target: String(ctx.args?.runId ?? "selected failing run"),
+      expectedResult: "The failing CI details are shown.",
+    }),
+    execute: () => ({ ok: true, message: "CI detail focus prepared; UI/provider wiring comes later" }),
+    approvalPolicy: "none",
+  },
+  {
+    id: "dev.service.open",
+    label: "Open service detail",
+    description: "Open the related service card/detail for a Dev project.",
+    domain: "dev",
+    risk: "read",
+    keywords: ["service", "open", "detail"],
+    dryRun: (ctx) => ({
+      summary: "Open service detail",
+      target: String(ctx.args?.serviceId ?? "selected service"),
+      expectedResult: "The relevant service detail is shown.",
+    }),
+    execute: () => ({ ok: true, message: "service detail focus prepared; UI wiring comes later" }),
+    approvalPolicy: "none",
+  },
+];

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUmbra } from "@/lib/store";
 import { needsApproval, runTool, searchTools, type Risk, type Tool } from "@/lib/tools";
+import { CommandRoutePreview } from "./CommandRoutePreview";
 
 const BADGE: Record<Risk, string | null> = { read: null, confirm: "CONFIRM", physical: "APPROVAL" };
 
@@ -25,7 +26,9 @@ function Palette() {
   const setLastResult = useUmbra((s) => s.setLastResult);
   const [index, setIndex] = useState(0);
   const [pending, setPending] = useState<Tool | null>(null);
+  const [prepared, setPrepared] = useState<import("./CommandRoutePreview").ClientCommandRoute | null>(null);
   const [running, setRunning] = useState(false);
+  const [preparedNote, setPreparedNote] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());
 
   const results = searchTools(query);
@@ -52,7 +55,15 @@ function Palette() {
       e.preventDefault();
       e.stopPropagation();
       if (pending) setPending(null);
+      else if (prepared) setPrepared(null);
       else close();
+      return;
+    }
+    if (prepared) {
+      if (e.key === "Enter" || e.key === "Escape") {
+        e.preventDefault();
+        setPrepared(null);
+      }
       return;
     }
     if (pending) {
@@ -71,6 +82,41 @@ function Palette() {
     } else if (e.key === "Enter") {
       e.preventDefault();
       choose(results[sel]);
+    }
+  }
+
+  async function executePrepared(route: import("./CommandRoutePreview").ClientCommandRoute) {
+    if (!route.actionId) return;
+    setPreparedNote("executing…");
+    const result = await fetch("/api/actions/execute", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actionId: route.actionId, args: route.args }),
+    }).then((response) => response.json()).catch(() => ({ ok: false, message: "execute request failed" }));
+    if (result.instruction?.type === "open_url") window.open(result.instruction.url, "_blank", "noopener,noreferrer");
+    const message = result.message ?? (result.ok ? "executed" : "execution failed");
+    setPreparedNote(route.actionId?.startsWith("knowledge.") && result.ok ? `${message} · refresh /ops to reindex` : message);
+  }
+
+  async function prepareRoute(route: import("./CommandRoutePreview").ClientCommandRoute) {
+    setPrepared(route);
+    setPreparedNote("planning…");
+    if (!route.actionId) return;
+    const res = await fetch("/api/actions/plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actionId: route.actionId, args: route.args }),
+    }).then((response) => (response.ok ? response.json() : null));
+    const safeNow = route.actionId ? ["ops.whatChanged.show", "ops.needs.show", "ops.approvals.review", "lab.proxmox.open", "lab.adguard.open", "lab.n8n.open", "knowledge.session.create", "knowledge.decision.create", "knowledge.runbook.create"].includes(route.actionId) : false;
+    if (route.requiresApproval && !safeNow) {
+      const approval = await fetch("/api/approvals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId: route.actionId, args: route.args, source: "cmdk" }),
+      }).then((response) => (response.ok ? response.json() : null));
+      setPreparedNote(approval?.approval ? "approval request queued" : "approval request failed");
+    } else {
+      setPreparedNote(res?.event ? "action planned" : "plan failed");
     }
   }
 
@@ -110,7 +156,33 @@ function Palette() {
           <span className="text-[10px] text-dim">⌘K</span>
         </div>
 
-        {pending ? (
+        {prepared ? (
+          <div className="border-l-2 border-attention px-[22px] py-[18px]">
+            <div className="text-[9.5px] tracking-[2px] text-attention">
+              PREPARED ACTION · {prepared.action?.risk.toUpperCase()} · {prepared.actionId}
+            </div>
+            <div className="mt-[10px] text-[16px] font-normal text-ink">{prepared.action?.label}</div>
+            <div className="mt-[10px] text-[11px] leading-5 text-dim">
+              {prepared.plan?.summary}
+              {prepared.plan?.target ? ` → ${prepared.plan.target}` : ""}
+            </div>
+            {prepared.plan?.preview && <div className="mt-[12px] border border-line/70 bg-black/20 p-[10px] text-[10px] leading-4 text-dim whitespace-pre-wrap">{prepared.plan.preview.split("\n").slice(0, 8).join("\n")}</div>}
+            <div className={prepared.requiresApproval ? "mt-[10px] text-[10px] tracking-[2px] text-attention" : "mt-[10px] text-[10px] tracking-[2px] text-mid"}>
+              {prepared.requiresApproval ? "APPROVAL REQUIRED BEFORE EXECUTION" : "NO APPROVAL REQUIRED"}
+            </div>
+            {preparedNote && <div className="mt-[8px] text-[10px] tracking-[2px] text-dim">{preparedNote}</div>}
+            <div className="mt-[16px] flex gap-[12px] text-[10px] tracking-[2px]">
+              {prepared.actionId && ["ops.whatChanged.show", "ops.needs.show", "ops.approvals.review", "lab.proxmox.open", "lab.adguard.open", "lab.n8n.open", "knowledge.session.create", "knowledge.decision.create", "knowledge.runbook.create"].includes(prepared.actionId) && (
+                <button type="button" onClick={() => void executePrepared(prepared)} className="border border-active px-[18px] py-[7px] text-active hover:bg-active/10">
+                  EXECUTE
+                </button>
+              )}
+              <button type="button" autoFocus onClick={() => setPrepared(null)} className="border border-ghost px-[18px] py-[7px] text-dim hover:text-ink">
+                DONE ⏎
+              </button>
+            </div>
+          </div>
+        ) : pending ? (
           <div className="border-l-2 border-attention px-[22px] py-[18px]">
             <div className="text-[9.5px] tracking-[2px] text-attention">
               APPROVAL REQUIRED · {pending.risk.toUpperCase()} · {pending.id}
@@ -168,8 +240,10 @@ function Palette() {
           </ul>
         )}
 
+        {!pending && !prepared && <CommandRoutePreview query={query} onPrepare={(route) => void prepareRoute(route)} />}
+
         <div className="flex h-[42px] items-center justify-between border-t border-line px-[22px] text-[9.5px] text-dim">
-          <span>{pending ? "⏎ confirm   esc cancel" : "↑↓ select   ⏎ run   esc close"}</span>
+          <span>{prepared ? "⏎ done   esc back" : pending ? "⏎ confirm   esc cancel" : "↑↓ select   ⏎ run   esc close"}</span>
           {showResult ? (
             <span className={lastResult.ok ? "text-mid" : "text-attention"}>{lastResult.message}</span>
           ) : (

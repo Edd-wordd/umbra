@@ -87,6 +87,47 @@ function useDevAttention() {
   }, []);
 }
 
+type BrainSummary = {
+  domains: Array<{ id: string; status: string; needs: number; notes: string[] }>;
+};
+
+/** Maps the server brain summary into the existing core sector attention. */
+function useBrainSummaryAttention() {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/brain/summary", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((summary: BrainSummary | null) => {
+        if (cancelled || !summary) return;
+        for (const sector of summary.domains) {
+          if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
+          const domain = sector.id as DomainId;
+          const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
+          if (sector.status === "blocked" || sector.status === "critical") {
+            useUmbra.getState().setAttention(domain, { level: "broken", note });
+          } else if (!["silent", "fyi"].includes(sector.status)) {
+            useUmbra.getState().setAttention(domain, { level: "attention", note });
+          }
+        }
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+}
+
+function sectorNote(domain: string, count: number) {
+  if (domain === "print") return count === 1 ? "1 print ready" : `${count} print items`;
+  if (domain === "cameras") return count === 1 ? "1 offline" : `${count} camera issues`;
+  if (domain === "business") return count === 1 ? "1 follow-up" : `${count} business items`;
+  if (domain === "lab") return count === 1 ? "1 lab issue" : `${count} lab issues`;
+  if (domain === "astro") return count === 1 ? "1 astro window" : `${count} astro items`;
+  if (domain === "knowledge") return count === 1 ? "1 note issue" : `${count} knowledge items`;
+  if (domain === "dev") return count === 1 ? "1 dev need" : `${count} dev needs`;
+  return count === 1 ? "1 situation" : `${count} situations`;
+}
+
 /** Drives the voice level bus with a fake speaking envelope while simulating. */
 function useVoiceSimulation() {
   const sim = useUmbra((s) => s.voiceSim);
@@ -103,6 +144,7 @@ export default function Console() {
   useDeepLink();
   useLiveBridge();
   useDevAttention();
+  useBrainSummaryAttention();
   const mode = useUmbra((s) => s.mode);
 
   return (
