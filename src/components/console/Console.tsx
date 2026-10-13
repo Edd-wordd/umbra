@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
 import { streamSampleEvents } from "@/lib/mock/events";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
+import BrainLegend from "../core/BrainLegend";
 import CoreStage from "../core/CoreStage";
+import { useBrainVisual } from "../core/useBrainVisual";
 import BottomStrips from "./BottomStrips";
 import CommandPalette from "./CommandPalette";
 import { useBrainSummary, type BrainSummary } from "./useBrainSummary";
@@ -133,13 +135,16 @@ export default function Console() {
   useLiveBridge();
   useDevAttention();
   const summary = useBrainSummary();
+  const visualGraph = useBrainVisual();
+  const [selectedBrainNodeId, setSelectedBrainNodeId] = useState<string | null>(null);
   useBrainSummaryAttention(summary);
   const mode = useUmbra((s) => s.mode);
 
   return (
     <main className="umbra-grid fixed inset-0 select-none overflow-hidden" data-mode={mode}>
       <div className="umbra-vignette pointer-events-none absolute inset-0" />
-      <CoreStage />
+      <CoreStage brainSummary={summary} visualGraph={visualGraph} selectedNodeId={selectedBrainNodeId} />
+      <BrainLegend graph={visualGraph} hidden={mode !== "idle"} selectedNodeId={selectedBrainNodeId} onSelect={setSelectedBrainNodeId} />
       <TopChrome />
       <Rails />
       <RailPanel />
