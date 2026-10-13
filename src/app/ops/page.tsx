@@ -99,7 +99,7 @@ export default async function OpsPage() {
           {labHealth.configured ? (
             labHealth.results.map((result) => (
               <Line key={result.id} tone={result.ok ? "cyan" : "amber"}>
-                {result.label} · {result.ok ? "ok" : "down"} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
+                {result.label} · {result.state} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
               </Line>
             ))
           ) : (

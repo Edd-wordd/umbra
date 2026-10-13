@@ -10,6 +10,7 @@ import { startVoiceSimulation } from "@/lib/voice/level";
 import CoreStage from "../core/CoreStage";
 import BottomStrips from "./BottomStrips";
 import CommandPalette from "./CommandPalette";
+import { useBrainSummary, type BrainSummary } from "./useBrainSummary";
 import RailPanel from "./RailPanel";
 import Rails from "./Rails";
 import TopChrome from "./TopChrome";
@@ -87,34 +88,21 @@ function useDevAttention() {
   }, []);
 }
 
-type BrainSummary = {
-  domains: Array<{ id: string; status: string; needs: number; notes: string[] }>;
-};
-
 /** Maps the server brain summary into the existing core sector attention. */
-function useBrainSummaryAttention() {
+function useBrainSummaryAttention(summary: BrainSummary | null) {
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/brain/summary", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((summary: BrainSummary | null) => {
-        if (cancelled || !summary) return;
-        for (const sector of summary.domains) {
-          if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
-          const domain = sector.id as DomainId;
-          const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
-          if (sector.status === "blocked" || sector.status === "critical") {
-            useUmbra.getState().setAttention(domain, { level: "broken", note });
-          } else if (!["silent", "fyi"].includes(sector.status)) {
-            useUmbra.getState().setAttention(domain, { level: "attention", note });
-          }
-        }
-      })
-      .catch(() => null);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!summary) return;
+    for (const sector of summary.domains) {
+      if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
+      const domain = sector.id as DomainId;
+      const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
+      if (sector.status === "blocked" || sector.status === "critical") {
+        useUmbra.getState().setAttention(domain, { level: "broken", note });
+      } else if (!["silent", "fyi"].includes(sector.status)) {
+        useUmbra.getState().setAttention(domain, { level: "attention", note });
+      }
+    }
+  }, [summary]);
 }
 
 function sectorNote(domain: string, count: number) {
@@ -144,7 +132,8 @@ export default function Console() {
   useDeepLink();
   useLiveBridge();
   useDevAttention();
-  useBrainSummaryAttention();
+  const summary = useBrainSummary();
+  useBrainSummaryAttention(summary);
   const mode = useUmbra((s) => s.mode);
 
   return (
