@@ -36,6 +36,7 @@ export async function GET() {
       status: result.ok ? "ok" : result.state,
       importance: result.ok ? 0.35 : 1,
       notes: [`${result.state}`, `${result.ms}ms`],
+      actions: [{ label: "open", command: `open ${result.label}` }],
     });
     addEdge(edges, { from: "domain:lab", to: id, kind: "contains", strength: result.ok ? 0.35 : 0.9 });
   }
@@ -48,6 +49,11 @@ export async function GET() {
     status: knowledge.configured && !knowledge.error ? (knowledge.rejected ? "watch" : "ok") : "error",
     importance: knowledge.rejected ? 0.8 : 0.45,
     notes: knowledge.configured && !knowledge.error ? [`${knowledge.accepted} typed`, `${knowledge.rejected} rejected`] : [knowledge.error ?? "not configured"],
+    actions: [
+      { label: "session", command: "create session note" },
+      { label: "decision", command: "create decision " },
+      { label: "runbook", command: "create runbook " },
+    ],
   });
   addEdge(edges, { from: "domain:knowledge", to: "knowledge:vault", kind: "summarizes", strength: 0.75 });
 
@@ -61,6 +67,7 @@ export async function GET() {
       status: "pending",
       importance: 0.92,
       notes: [approval.risk, approval.plan.target ?? approval.actionId],
+      actions: [{ label: "review", command: "review approvals" }],
     });
     addEdge(edges, { from: "domain:ops", to: id, kind: "requires_attention", strength: 1 });
   }

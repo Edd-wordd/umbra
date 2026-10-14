@@ -1,24 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUmbra } from "@/lib/store";
 import { needsApproval, runTool, searchTools, type Risk, type Tool } from "@/lib/tools";
 import { CommandRoutePreview } from "./CommandRoutePreview";
 
 const BADGE: Record<Risk, string | null> = { read: null, confirm: "CONFIRM", physical: "APPROVAL" };
 
+type CatalogAction = { id: string; label: string; domain: string; risk: string; requiresApproval: boolean };
+
+function matchesCatalog(action: CatalogAction, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return ["lab", "knowledge", "ops", "dev"].includes(action.domain);
+  return action.id.toLowerCase().includes(q) || action.label.toLowerCase().includes(q) || action.domain.toLowerCase().includes(q);
+}
+
 /**
  * Cmd-K palette: typed fallback to voice. Lists tools from the shared tool
  * layer; risky tools go through an explicit approval step before running.
  * The only modal surface allowed; the console dims but does not change state.
  */
-export default function CommandPalette() {
+export default function CommandPalette({ contextNodeId, contextLabel }: { contextNodeId?: string | null; contextLabel?: string | null }) {
   const open = useUmbra((s) => s.paletteOpen);
   if (!open) return null;
-  return <Palette />;
+  return <Palette contextNodeId={contextNodeId} contextLabel={contextLabel} />;
 }
 
-function Palette() {
+function Palette({ contextNodeId, contextLabel }: { contextNodeId?: string | null; contextLabel?: string | null }) {
   const query = useUmbra((s) => s.paletteQuery);
   const setQuery = useUmbra((s) => s.setPaletteQuery);
   const close = useUmbra((s) => s.closePalette);
@@ -30,9 +38,27 @@ function Palette() {
   const [running, setRunning] = useState(false);
   const [preparedNote, setPreparedNote] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());
+  const [catalog, setCatalog] = useState<CatalogAction[]>([]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/commands/catalog", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { actions?: CatalogAction[] } | null) => {
+        if (!cancelled) setCatalog(data?.actions ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const catalogResults = catalog.filter((action) => matchesCatalog(action, query)).slice(0, 10);
+  const usingCatalog = catalogResults.length > 0;
   const results = searchTools(query);
-  const sel = Math.min(index, Math.max(0, results.length - 1));
+  const sel = Math.min(index, Math.max(0, (usingCatalog ? catalogResults.length : results.length) - 1));
 
   async function execute(tool: Tool, approved: boolean) {
     const { wakeRail, setMode, toIdle } = useUmbra.getState();
@@ -48,6 +74,15 @@ function Palette() {
     if (!tool || running) return;
     if (needsApproval(tool)) setPending(tool);
     else void execute(tool, false);
+  }
+
+  async function routeAndPrepare(input: string) {
+    const route = await fetch("/api/commands/route", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input, contextNodeId }),
+    }).then((res) => (res.ok ? res.json() : null));
+    if (route && !route.unresolved) await prepareRoute(route);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -75,13 +110,14 @@ function Palette() {
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setIndex((sel + 1) % Math.max(1, results.length));
+      setIndex((sel + 1) % Math.max(1, usingCatalog ? catalogResults.length : results.length));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setIndex((sel - 1 + results.length) % Math.max(1, results.length));
+      setIndex((sel - 1 + (usingCatalog ? catalogResults.length : results.length)) % Math.max(1, usingCatalog ? catalogResults.length : results.length));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      choose(results[sel]);
+      if (usingCatalog) void routeAndPrepare(catalogResults[sel].id);
+      else choose(results[sel]);
     }
   }
 
@@ -91,7 +127,7 @@ function Palette() {
     const result = await fetch("/api/actions/execute", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actionId: route.actionId, args: route.args }),
+      body: JSON.stringify({ actionId: route.actionId, args: route.args, contextNodeId }),
     }).then((response) => response.json()).catch(() => ({ ok: false, message: "execute request failed" }));
     if (result.instruction?.type === "open_url") window.open(result.instruction.url, "_blank", "noopener,noreferrer");
     const message = result.message ?? (result.ok ? "executed" : "execution failed");
@@ -105,14 +141,14 @@ function Palette() {
     const res = await fetch("/api/actions/plan", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actionId: route.actionId, args: route.args }),
+      body: JSON.stringify({ actionId: route.actionId, args: route.args, contextNodeId }),
     }).then((response) => (response.ok ? response.json() : null));
     const safeNow = route.actionId ? ["ops.whatChanged.show", "ops.needs.show", "ops.approvals.review", "lab.proxmox.open", "lab.adguard.open", "lab.n8n.open", "knowledge.session.create", "knowledge.decision.create", "knowledge.runbook.create"].includes(route.actionId) : false;
     if (route.requiresApproval && !safeNow) {
       const approval = await fetch("/api/approvals", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ actionId: route.actionId, args: route.args, source: "cmdk" }),
+        body: JSON.stringify({ actionId: route.actionId, args: route.args, source: "cmdk", contextNodeId }),
       }).then((response) => (response.ok ? response.json() : null));
       setPreparedNote(approval?.approval ? "approval request queued" : "approval request failed");
     } else {
@@ -134,7 +170,7 @@ function Palette() {
         role="dialog"
         aria-modal="true"
         aria-label="command palette"
-        className="umbra-pop absolute left-1/2 top-[230px] w-[720px] max-w-[calc(100%-48px)] -translate-x-1/2 border border-line-strong bg-panel"
+        className="umbra-pop absolute left-1/2 top-[230px] flex max-h-[calc(100vh-280px)] w-[720px] max-w-[calc(100%-48px)] -translate-x-1/2 flex-col border border-line-strong bg-panel"
         onKeyDown={onKeyDown}
       >
         <span className="glow-active absolute -top-px left-0 right-0 h-px bg-active/70" />
@@ -155,6 +191,8 @@ function Palette() {
           />
           <span className="text-[10px] text-dim">⌘K</span>
         </div>
+
+        {contextLabel && !pending && !prepared && <div className="border-b border-line px-[22px] py-[7px] text-[9.5px] tracking-[2px] text-dim">CONTEXT · {contextLabel}</div>}
 
         {prepared ? (
           <div className="border-l-2 border-attention px-[22px] py-[18px]">
@@ -208,10 +246,31 @@ function Palette() {
             </div>
           </div>
         ) : (
+          <>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+          <ul role="listbox" aria-label="actions" className="border-b border-line py-[4px]">
+            {catalogResults.length === 0 && <li className="px-[22px] py-[10px] text-[10px] text-dim">no canonical action match</li>}
+            {catalogResults.map((action, i) => (
+              <li
+                key={action.id}
+                role="option"
+                aria-selected={usingCatalog && i === sel}
+                onClick={() => {
+                  void routeAndPrepare(action.id);
+                }}
+                className={`relative flex h-[34px] cursor-pointer items-center px-[22px] text-[10.5px] hover:bg-panel-raised ${usingCatalog && i === sel ? "bg-panel-raised" : ""}`}
+              >
+                <span className="w-[120px] shrink-0 tracking-[2px] text-mid">{action.domain.toUpperCase()}</span>
+                <span className="w-[230px] shrink-0 truncate text-active">{action.id}</span>
+                <span className="truncate text-dim">{action.label}</span>
+                {action.requiresApproval && <span className="ml-auto text-[9px] tracking-[1px] text-attention">APPROVAL</span>}
+              </li>
+            ))}
+          </ul>
           <ul role="listbox" aria-label="tools" className="py-[4px]">
             {results.length === 0 && <li className="px-[22px] py-[12px] text-[11px] text-dim">no matching tool</li>}
             {results.map((t, i) => {
-              const active = i === sel;
+              const active = !usingCatalog && i === sel;
               const badge = BADGE[t.risk];
               return (
                 <li
@@ -238,9 +297,11 @@ function Palette() {
               );
             })}
           </ul>
+          </div>
+          </>
         )}
 
-        {!pending && !prepared && <CommandRoutePreview query={query} onPrepare={(route) => void prepareRoute(route)} />}
+        {!pending && !prepared && <CommandRoutePreview query={query} contextNodeId={contextNodeId} onPrepare={(route) => void prepareRoute(route)} />}
 
         <div className="flex h-[42px] items-center justify-between border-t border-line px-[22px] text-[9.5px] text-dim">
           <span>{prepared ? "⏎ done   esc back" : pending ? "⏎ confirm   esc cancel" : "↑↓ select   ⏎ run   esc close"}</span>

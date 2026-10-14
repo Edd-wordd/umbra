@@ -1,6 +1,11 @@
 export type BrainVisualNodeKind = "domain" | "service" | "vault" | "approval" | "timeline" | "summary";
 export type BrainVisualStatus = "silent" | "watch" | "approval" | "blocked" | "ok" | "down" | "pending" | "error";
 
+export interface BrainVisualActionHint {
+  label: string;
+  command: string;
+}
+
 export interface BrainVisualNode {
   id: string;
   label: string;
@@ -9,6 +14,7 @@ export interface BrainVisualNode {
   status: BrainVisualStatus | string;
   importance: number;
   notes?: string[];
+  actions?: BrainVisualActionHint[];
 }
 
 export interface BrainVisualEdge {

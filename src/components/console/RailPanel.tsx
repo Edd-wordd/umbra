@@ -44,7 +44,7 @@ function SourceBadge({ source }: { source: BrainDomainSource }) {
  * The Dev rail opens the expanded Dev focus instead, which stays awake while
  * open (Esc or the DEV tick closes it).
  */
-export default function RailPanel() {
+export default function RailPanel({ selectedBrainNodeId }: { selectedBrainNodeId?: string | null }) {
   const mode = useUmbra((s) => s.mode);
   const since = useUmbra((s) => s.since);
   const toIdle = useUmbra((s) => s.toIdle);
@@ -115,7 +115,7 @@ export default function RailPanel() {
           <p className="mt-[8px] text-[9.5px] text-dim">touched {formatClock(new Date(since))} · esc / 20s idle to collapse</p>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
-          {id === "knowledge" ? <KnowledgeRailContent openPalette={openPalette} /> : id === "lab" ? <LabRailContent openPalette={openPalette} /> : content.sections.map((sec) => (
+          {id === "knowledge" ? <KnowledgeRailContent openPalette={openPalette} selectedBrainNodeId={selectedBrainNodeId} /> : id === "lab" ? <LabRailContent openPalette={openPalette} selectedBrainNodeId={selectedBrainNodeId} /> : content.sections.map((sec) => (
             <div key={sec.title} className="mt-[20px] border-t border-line pt-[12px]">
               <div className="flex justify-between text-[9.5px]">
                 <span className="tracking-[2px] text-mid">{sec.title}</span>

@@ -20,7 +20,7 @@ function compactPreview(preview: string) {
   return preview.split("\n").slice(0, 8).join("\n");
 }
 
-export function CommandRoutePreview({ query, onPrepare }: { query: string; onPrepare?: (route: ClientCommandRoute) => void }) {
+export function CommandRoutePreview({ query, onPrepare, contextNodeId }: { query: string; onPrepare?: (route: ClientCommandRoute) => void; contextNodeId?: string | null }) {
   const [route, setRoute] = useState<ClientCommandRoute | null>(null);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function CommandRoutePreview({ query, onPrepare }: { query: string; onPre
       void fetch("/api/commands/route", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ input: trimmed }),
+        body: JSON.stringify({ input: trimmed, contextNodeId }),
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((next: ClientCommandRoute | null) => {
@@ -45,7 +45,7 @@ export function CommandRoutePreview({ query, onPrepare }: { query: string; onPre
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, contextNodeId]);
 
   if (!route?.action || !route.plan) return null;
 

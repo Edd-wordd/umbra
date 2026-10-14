@@ -1,4 +1,4 @@
-import { getAction } from "../actions";
+import { ACTIONS, getAction } from "../actions";
 import { actionRequiresApproval } from "../actions/policy";
 import type { CommandRoute } from "./types";
 
@@ -39,6 +39,11 @@ const RULES: LocalRule[] = [
 
 export async function routeCommand(input: string): Promise<CommandRoute> {
   const trimmed = input.trim();
+  const exact = ACTIONS.find((action) => action.id === trimmed);
+  if (exact) {
+    const plan = await exact.dryRun({ source: "system", actor: "umbra", approved: false, args: {} });
+    return { input, source: "local", actionId: exact.id, confidence: 1, reason: "matched canonical action id", args: {}, action: exact, requiresApproval: actionRequiresApproval(exact), plan };
+  }
   const rule = RULES.find((candidate) => candidate.match.test(trimmed));
   if (!rule) return { input, source: "local", confidence: 0, reason: "no local rule matched", args: {}, unresolved: true };
   const action = getAction(rule.actionId);

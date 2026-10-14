@@ -1,7 +1,12 @@
 "use client";
 
 import { create } from "zustand";
-import { createDevSnapshot, createMockDevBridge, MOCK_AGENT_KINDS, type MockVariant } from "../mock/dev";
+import {
+  createDevSnapshot,
+  createMockDevBridge,
+  MOCK_AGENT_KINDS,
+  type MockVariant,
+} from "../mock/dev";
 import type { Attention } from "../store";
 import { shortCwd } from "./format";
 import { PROJECTS, type DevProject } from "./projects";
@@ -89,7 +94,11 @@ interface DevState extends DevSnapshot {
   apply: (ev: DevEvent) => void;
   loadMock: (variant: MockVariant) => void;
   /** Swap in the live helper bridge with its first snapshot. */
-  attachBridge: (bridge: DevBridge, snapshot: DevSnapshot, label: string) => void;
+  attachBridge: (
+    bridge: DevBridge,
+    snapshot: DevSnapshot,
+    label: string,
+  ) => void;
   /** Helper went away: back to the sample bridge. */
   detachBridge: (why: string) => void;
   setHelper: (helper: HelperStatus) => void;
@@ -106,9 +115,16 @@ interface DevState extends DevSnapshot {
   approvePending: () => void;
   denyPending: () => void;
   clearPending: () => void;
-  respondPrompt: (agentId: string, answer: "approve" | "deny", source?: ActivitySource) => void;
+  respondPrompt: (
+    agentId: string,
+    answer: "approve" | "deny",
+    source?: ActivitySource,
+  ) => void;
   requestKill: (port: number, source?: ActivitySource) => void;
-  killPort: (port: number, opts: { approved: boolean; source: ActivitySource }) => { ok: boolean; message: string };
+  killPort: (
+    port: number,
+    opts: { approved: boolean; source: ActivitySource },
+  ) => { ok: boolean; message: string };
   startServer: (serverId: string, source?: ActivitySource) => void;
   dispatch: (task: string, source?: ActivitySource) => void;
   cycleDispatchRepo: () => void;
@@ -116,8 +132,16 @@ interface DevState extends DevSnapshot {
   resumeSessions: (source?: ActivitySource) => void;
   toggleProject: (repo: RepoId) => void;
   openPicker: (repo: RepoId | null) => void;
-  addService: (repo: RepoId, serviceId: string, source?: ActivitySource) => void;
-  detachService: (repo: RepoId, serviceId: string, source?: ActivitySource) => void;
+  addService: (
+    repo: RepoId,
+    serviceId: string,
+    source?: ActivitySource,
+  ) => void;
+  detachService: (
+    repo: RepoId,
+    serviceId: string,
+    source?: ActivitySource,
+  ) => void;
   runTests: (repo: RepoId, source?: ActivitySource) => void;
   reviewDiff: (agentId: string, source?: ActivitySource) => void;
 }
@@ -133,17 +157,46 @@ let unsubscribe = () => {};
 
 const seedActivity = (variant: MockVariant): ActivityEntry[] =>
   variant === "quiet"
-    ? [{ id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 1 agent · 1 port · quiet day", result: "info" }]
+    ? [
+        {
+          id: nid("x"),
+          at: Date.now() - 140_000,
+          source: "bridge",
+          text: "sample bridge attached · 1 agent · 1 port · quiet day",
+          result: "info",
+        },
+      ]
     : [
-        { id: nid("x"), at: Date.now() - 140_000, source: "bridge", text: "sample bridge attached · 4 agents · 3 ports", result: "info" },
-        { id: nid("x"), at: Date.now() - 135_000, source: "agent", text: "umbra/cursor waiting · workspace trust", result: "pending" },
+        {
+          id: nid("x"),
+          at: Date.now() - 140_000,
+          source: "bridge",
+          text: "sample bridge attached · 4 agents · 3 ports",
+          result: "info",
+        },
+        {
+          id: nid("x"),
+          at: Date.now() - 135_000,
+          source: "agent",
+          text: "umbra/cursor waiting · workspace trust",
+          result: "pending",
+        },
       ];
 
-const sessionLabel = (s: DevState, sessionId: string) => s.sessions[sessionId]?.title ?? sessionId;
+const sessionLabel = (s: DevState, sessionId: string) =>
+  s.sessions[sessionId]?.title ?? sessionId;
 
 export const useDevStore = create<DevState>()((set, get) => {
-  const echo = (sessionId: string, text: string, kind: TermLine["kind"] = "cmd") =>
-    get().apply({ type: "term.append", sessionId, lines: [{ id: nid("e"), at: Date.now(), kind, text }] });
+  const echo = (
+    sessionId: string,
+    text: string,
+    kind: TermLine["kind"] = "cmd",
+  ) =>
+    get().apply({
+      type: "term.append",
+      sessionId,
+      lines: [{ id: nid("e"), at: Date.now(), kind, text }],
+    });
   const promptFor = (sessionId: string) => {
     const s = get().sessions[sessionId];
     return s ? `${shortCwd(s.cwd)} ${s.branch} ❯ ` : "❯ ";
@@ -177,26 +230,58 @@ export const useDevStore = create<DevState>()((set, get) => {
           case "agent.upsert": {
             const exists = s.agents.some((a) => a.id === ev.agent.id);
             // New sessions land on top so a dispatch is visible immediately.
-            const agents = exists ? s.agents.map((a) => (a.id === ev.agent.id ? ev.agent : a)) : [ev.agent, ...s.agents];
+            const agents = exists
+              ? s.agents.map((a) => (a.id === ev.agent.id ? ev.agent : a))
+              : [ev.agent, ...s.agents];
             const follow = !exists && s.followNewAgent;
-            return { agents, ...(follow ? { selectedId: ev.agent.sessionId, followNewAgent: false } : {}) };
+            return {
+              agents,
+              ...(follow
+                ? { selectedId: ev.agent.sessionId, followNewAgent: false }
+                : {}),
+            };
           }
           case "session.upsert": {
             const prev = s.sessions[ev.session.id];
-            return { sessions: { ...s.sessions, [ev.session.id]: { ...ev.session, lines: ev.lines ?? prev?.lines ?? [] } } };
+            return {
+              sessions: {
+                ...s.sessions,
+                [ev.session.id]: {
+                  ...ev.session,
+                  lines: ev.lines ?? prev?.lines ?? [],
+                },
+              },
+            };
           }
           case "term.append": {
             const prev = s.sessions[ev.sessionId];
             if (!prev) return {};
-            return { sessions: { ...s.sessions, [ev.sessionId]: { ...prev, lines: [...prev.lines, ...ev.lines].slice(-400) } } };
+            return {
+              sessions: {
+                ...s.sessions,
+                [ev.sessionId]: {
+                  ...prev,
+                  lines: [...prev.lines, ...ev.lines].slice(-400),
+                },
+              },
+            };
           }
           case "term.clear": {
             const prev = s.sessions[ev.sessionId];
-            return prev ? { sessions: { ...s.sessions, [ev.sessionId]: { ...prev, lines: [] } } } : {};
+            return prev
+              ? {
+                  sessions: {
+                    ...s.sessions,
+                    [ev.sessionId]: { ...prev, lines: [] },
+                  },
+                }
+              : {};
           }
           case "server.upsert":
             return {
-              servers: s.servers.some((x) => x.id === ev.server.id) ? s.servers.map((x) => (x.id === ev.server.id ? ev.server : x)) : [...s.servers, ev.server],
+              servers: s.servers.some((x) => x.id === ev.server.id)
+                ? s.servers.map((x) => (x.id === ev.server.id ? ev.server : x))
+                : [...s.servers, ev.server],
             };
           case "servers.set":
             return { servers: ev.servers };
@@ -206,15 +291,26 @@ export const useDevStore = create<DevState>()((set, get) => {
             // Keep services attached locally with "+ service" for projects that stay open.
             const projects = ev.projects.map((p) => {
               const prev = s.projects.find((x) => x.repo === p.repo);
-              return { ...p, services: prev ? [...new Set([...p.services, ...prev.services])] : [...p.services] };
+              return {
+                ...p,
+                services: prev
+                  ? [...new Set([...p.services, ...prev.services])]
+                  : [...p.services],
+              };
             });
             const repos = new Set(projects.map((p) => p.repo));
             return {
               projects,
               recentProjects: ev.recent,
-              expandedProject: s.expandedProject && repos.has(s.expandedProject) ? s.expandedProject : null,
-              pickerFor: s.pickerFor && repos.has(s.pickerFor) ? s.pickerFor : null,
-              dispatchRepo: repos.has(s.dispatchRepo) ? s.dispatchRepo : (projects[0]?.repo ?? s.dispatchRepo),
+              expandedProject:
+                s.expandedProject && repos.has(s.expandedProject)
+                  ? s.expandedProject
+                  : null,
+              pickerFor:
+                s.pickerFor && repos.has(s.pickerFor) ? s.pickerFor : null,
+              dispatchRepo: repos.has(s.dispatchRepo)
+                ? s.dispatchRepo
+                : (projects[0]?.repo ?? s.dispatchRepo),
             };
           }
           case "ci.upsert":
@@ -224,12 +320,34 @@ export const useDevStore = create<DevState>()((set, get) => {
                 : [ev.run, ...s.ci],
             };
           case "service.upsert":
-            return { services: { ...s.services, [ev.service]: { ...s.services[ev.service], [ev.repo]: ev.payload } } };
+            return {
+              services: {
+                ...s.services,
+                [ev.service]: {
+                  ...s.services[ev.service],
+                  [ev.repo]: ev.payload,
+                },
+              },
+            };
           case "signal":
-            return { signals: [ev.signal, ...s.signals.filter((x) => x.id !== ev.signal.id)].slice(0, MAX_SIGNALS) };
+            return {
+              signals: [
+                ev.signal,
+                ...s.signals.filter((x) => x.id !== ev.signal.id),
+              ].slice(0, MAX_SIGNALS),
+            };
           case "notice":
             return {
-              activity: [...s.activity, { id: nid("x"), at: Date.now(), source: "bridge" as const, text: ev.text, result: ev.result }].slice(-MAX_LOG),
+              activity: [
+                ...s.activity,
+                {
+                  id: nid("x"),
+                  at: Date.now(),
+                  source: "bridge" as const,
+                  text: ev.text,
+                  result: ev.result,
+                },
+              ].slice(-MAX_LOG),
             };
         }
       }),
@@ -263,8 +381,12 @@ export const useDevStore = create<DevState>()((set, get) => {
       unsubscribe();
       bridge = live;
       unsubscribe = bridge.subscribe((ev) => get().apply(ev));
-      const projects = snap.projects?.map((p) => ({ ...p, services: [...p.services] })) ?? get().projects;
-      const kinds = snap.agentKinds?.length ? snap.agentKinds : get().agentKinds;
+      const projects =
+        snap.projects?.map((p) => ({ ...p, services: [...p.services] })) ??
+        get().projects;
+      const kinds = snap.agentKinds?.length
+        ? snap.agentKinds
+        : get().agentKinds;
       set({
         ...snap,
         projects,
@@ -278,10 +400,22 @@ export const useDevStore = create<DevState>()((set, get) => {
         expandedProject: null,
         pickerFor: null,
         signals: [],
-        dispatchRepo: projects.some((p) => p.repo === get().dispatchRepo) ? get().dispatchRepo : (projects[0]?.repo ?? get().dispatchRepo),
-        dispatchAgent: kinds.includes(get().dispatchAgent) ? get().dispatchAgent : kinds[0],
+        dispatchRepo: projects.some((p) => p.repo === get().dispatchRepo)
+          ? get().dispatchRepo
+          : (projects[0]?.repo ?? get().dispatchRepo),
+        dispatchAgent: kinds.includes(get().dispatchAgent)
+          ? get().dispatchAgent
+          : kinds[0],
         // Sample-world entries would read as real history: start the log fresh.
-        activity: [{ id: nid("x"), at: Date.now(), source: "bridge" as const, text: `mac helper connected · ${label}`, result: "ok" as const }],
+        activity: [
+          {
+            id: nid("x"),
+            at: Date.now(),
+            source: "bridge" as const,
+            text: `mac helper connected · ${label}`,
+            result: "ok" as const,
+          },
+        ],
       });
     },
 
@@ -289,7 +423,11 @@ export const useDevStore = create<DevState>()((set, get) => {
       if (get().bridgeMode !== "live") return;
       set({ mock: "quiet" }); // force loadMock("default") to rebuild
       get().loadMock("default");
-      get().log("bridge", `mac helper disconnected · ${why} · showing sample data`, "error");
+      get().log(
+        "bridge",
+        `mac helper disconnected · ${why} · showing sample data`,
+        "error",
+      );
     },
 
     setHelper: (helper) => set({ helper }),
@@ -302,7 +440,11 @@ export const useDevStore = create<DevState>()((set, get) => {
     },
 
     focusPane: (sessionId, source = "touch") => {
-      get().log(source, `focus in Herdr · ${sessionLabel(get(), sessionId)}`, "ok");
+      get().log(
+        source,
+        `focus in Herdr · ${sessionLabel(get(), sessionId)}`,
+        "ok",
+      );
       bridge.send({ type: "pane.focus", sessionId });
     },
 
@@ -314,11 +456,20 @@ export const useDevStore = create<DevState>()((set, get) => {
       const sig = get().signals.find((x) => x.id === id);
       if (!sig) return;
       set({ signals: get().signals.filter((x) => x.id !== id) });
-      get().log(source, `dismissed ${sig.repo ?? sig.source} · ${sig.title}`, "info");
+      get().log(
+        source,
+        `dismissed ${sig.repo ?? sig.source} · ${sig.title}`,
+        "info",
+      );
     },
 
     log: (source, text, result = "ok") =>
-      set((s) => ({ activity: [...s.activity, { id: nid("x"), at: Date.now(), source, text, result }].slice(-MAX_LOG) })),
+      set((s) => ({
+        activity: [
+          ...s.activity,
+          { id: nid("x"), at: Date.now(), source, text, result },
+        ].slice(-MAX_LOG),
+      })),
 
     select: (selectedId) => {
       const prev = get().selectedId;
@@ -326,8 +477,10 @@ export const useDevStore = create<DevState>()((set, get) => {
       set({ selectedId });
       // Live: Herdr panes are read on demand, only while on screen.
       if (get().bridgeMode === "live") {
-        if (prev.startsWith("pane:")) bridge.send({ type: "term.watch", sessionId: prev, on: false });
-        if (selectedId.startsWith("pane:")) bridge.send({ type: "term.watch", sessionId: selectedId, on: true });
+        if (prev.startsWith("pane:"))
+          bridge.send({ type: "term.watch", sessionId: prev, on: false });
+        if (selectedId.startsWith("pane:"))
+          bridge.send({ type: "term.watch", sessionId: selectedId, on: true });
       }
     },
 
@@ -340,25 +493,54 @@ export const useDevStore = create<DevState>()((set, get) => {
       // Live sessions echo through their own TTY; the sample shell needs a local echo.
       if (!live) echo(sessionId, promptFor(sessionId) + command);
       if (s.pending) {
-        echo(sessionId, "… one approval at a time · resolve the held action first", "dim");
+        echo(
+          sessionId,
+          "… one approval at a time · resolve the held action first",
+          "dim",
+        );
         return;
       }
       if (live && s.sessions[sessionId]?.managed === false) {
-        echo(sessionId, "✕ read-only · this process isn't in Herdr or started from Umbra · open a shell from the project", "dim");
+        echo(
+          sessionId,
+          "✕ read-only · this process isn't in Herdr or started from Umbra · open a shell from the project",
+          "dim",
+        );
         return;
       }
       const target = s.agents.find((a) => a.sessionId === sessionId);
       if (live && target?.state === "waiting") {
-        echo(sessionId, "… the agent is waiting on a dialog · answer it with Approve / Deny first", "dim");
+        echo(
+          sessionId,
+          "… the agent is waiting on a dialog · answer it with Approve / Deny first",
+          "dim",
+        );
         return;
       }
       const risk = classifyCommand(command);
       if (risk.risky) {
-        set({ pending: { id: nid("p"), origin: "terminal", command, reason: risk.reason ?? "risky", source, sessionId } });
-        get().log(source, `${sessionLabel(s, sessionId)} · \`${command}\` held · ${risk.reason}`, "pending");
+        set({
+          pending: {
+            id: nid("p"),
+            origin: "terminal",
+            command,
+            reason: risk.reason ?? "risky",
+            source,
+            sessionId,
+          },
+        });
+        get().log(
+          source,
+          `${sessionLabel(s, sessionId)} · \`${command}\` held · ${risk.reason}`,
+          "pending",
+        );
         return;
       }
-      get().log(source, `${sessionLabel(s, sessionId)} · ran \`${command}\``, "ok");
+      get().log(
+        source,
+        `${sessionLabel(s, sessionId)} · ran \`${command}\``,
+        "ok",
+      );
       bridge.send({ type: "term.exec", sessionId, command, approved: false });
     },
 
@@ -367,8 +549,17 @@ export const useDevStore = create<DevState>()((set, get) => {
       if (!p) return;
       set({ pending: null });
       if (p.origin === "terminal" && p.sessionId) {
-        get().log(p.source, `approved \`${p.command}\` · ${sessionLabel(get(), p.sessionId)}`, "ok");
-        bridge.send({ type: "term.exec", sessionId: p.sessionId, command: p.command, approved: true });
+        get().log(
+          p.source,
+          `approved \`${p.command}\` · ${sessionLabel(get(), p.sessionId)}`,
+          "ok",
+        );
+        bridge.send({
+          type: "term.exec",
+          sessionId: p.sessionId,
+          command: p.command,
+          approved: true,
+        });
       }
     },
 
@@ -376,7 +567,8 @@ export const useDevStore = create<DevState>()((set, get) => {
       const p = get().pending;
       if (!p) return;
       set({ pending: null });
-      if (p.sessionId) echo(p.sessionId, `✕ denied · \`${p.command}\` not run`, "dim");
+      if (p.sessionId)
+        echo(p.sessionId, `✕ denied · \`${p.command}\` not run`, "dim");
       get().log(p.source, `denied \`${p.command}\``, "denied");
     },
 
@@ -385,8 +577,17 @@ export const useDevStore = create<DevState>()((set, get) => {
     respondPrompt: (agentId, answer, source = "touch") => {
       const a = get().agents.find((x) => x.id === agentId);
       if (!a?.prompt) return;
-      get().log(source, `${answer === "approve" ? "approved" : "denied"} ${a.prompt.title.toLowerCase()} · ${a.repo}/${a.agent}`, answer === "approve" ? "ok" : "denied");
-      bridge.send({ type: "agent.respond", agentId, promptId: a.prompt.id, answer });
+      get().log(
+        source,
+        `${answer === "approve" ? "approved" : "denied"} ${a.prompt.title.toLowerCase()} · ${a.repo}/${a.agent}`,
+        answer === "approve" ? "ok" : "denied",
+      );
+      bridge.send({
+        type: "agent.respond",
+        agentId,
+        promptId: a.prompt.id,
+        answer,
+      });
       get().select(a.sessionId);
     },
 
@@ -404,26 +605,43 @@ export const useDevStore = create<DevState>()((set, get) => {
           args: { port: String(port) },
         },
       });
-      get().log(source, `kill ${srv.pid} (:${port}) held · needs your yes`, "pending");
+      get().log(
+        source,
+        `kill ${srv.pid} (:${port}) held · needs your yes`,
+        "pending",
+      );
     },
 
     killPort: (port, { approved, source }) => {
       const srv = get().servers.find((x) => x.port === port && x.pid);
       if (!srv?.pid) {
         // Sample world: streamed port events have no process behind them.
-        if (approved) get().log(source, `:${port} already free · nothing to kill (sample)`, "info");
+        if (approved)
+          get().log(
+            source,
+            `:${port} already free · nothing to kill (sample)`,
+            "info",
+          );
         return { ok: approved, message: `:${port} has no process` };
       }
-      if (!approved) return { ok: false, message: `kill ${srv.pid} needs approval` };
+      if (!approved)
+        return { ok: false, message: `kill ${srv.pid} needs approval` };
       get().log(source, `approved kill ${srv.pid} · free :${port}`, "ok");
       bridge.send({ type: "process.kill", pid: srv.pid, approved: true });
-      return { ok: true, message: `${get().bridgeMode === "live" ? "LIVE" : "SAMPLE"} · kill ${srv.pid} sent · :${port} freeing` };
+      return {
+        ok: true,
+        message: `${get().bridgeMode === "live" ? "LIVE" : "SAMPLE"} · kill ${srv.pid} sent · :${port} freeing`,
+      };
     },
 
     startServer: (serverId, source = "touch") => {
       const srv = get().servers.find((x) => x.id === serverId);
       if (!srv) return;
-      get().log(source, `start ${srv.repo ?? srv.command} on :${srv.port}`, "ok");
+      get().log(
+        source,
+        `start ${srv.repo ?? srv.command} on :${srv.port}`,
+        "ok",
+      );
       bridge.send({ type: "server.start", serverId });
       if (srv.sessionId) set({ selectedId: srv.sessionId });
     },
@@ -435,7 +653,12 @@ export const useDevStore = create<DevState>()((set, get) => {
       get().log(source, `dispatched ${repo}/${agent} · “${task}”`, "ok");
       if (get().bridgeMode === "live") {
         // Herdr: the task goes to an idle agent already open in that project; follow it.
-        const ready = get().agents.find((a) => a.repo === repo && a.agent === agent && (a.state === "idle" || a.state === "done"));
+        const ready = get().agents.find(
+          (a) =>
+            a.repo === repo &&
+            a.agent === agent &&
+            (a.state === "idle" || a.state === "done"),
+        );
         if (ready) get().select(ready.sessionId);
       } else set({ followNewAgent: true });
       bridge.send({ type: "agent.dispatch", repo, agent, task });
@@ -444,11 +667,17 @@ export const useDevStore = create<DevState>()((set, get) => {
     cycleDispatchRepo: () => {
       const repos = get().projects.map((p) => p.repo);
       const i = repos.indexOf(get().dispatchRepo);
-      set({ dispatchRepo: repos[(i + 1) % repos.length] ?? get().dispatchRepo });
+      set({
+        dispatchRepo: repos[(i + 1) % repos.length] ?? get().dispatchRepo,
+      });
     },
     cycleDispatchAgent: () => {
       const kinds = get().agentKinds;
-      set({ dispatchAgent: kinds[(kinds.indexOf(get().dispatchAgent) + 1) % kinds.length] ?? get().dispatchAgent });
+      set({
+        dispatchAgent:
+          kinds[(kinds.indexOf(get().dispatchAgent) + 1) % kinds.length] ??
+          get().dispatchAgent,
+      });
     },
 
     resumeSessions: (source = "touch") => {
@@ -457,31 +686,49 @@ export const useDevStore = create<DevState>()((set, get) => {
       bridge.send({ type: "sessions.resume" });
     },
 
-    toggleProject: (repo) => set({ expandedProject: get().expandedProject === repo ? null : repo, pickerFor: null }),
+    toggleProject: (repo) =>
+      set({
+        expandedProject: get().expandedProject === repo ? null : repo,
+        pickerFor: null,
+      }),
 
     openPicker: (pickerFor) => set({ pickerFor }),
 
     addService: (repo, serviceId, source = "touch") => {
       const p = get().projects.find((x) => x.repo === repo);
-      if (!p || p.services.includes(serviceId) || !getService(serviceId)) return;
+      if (!p || p.services.includes(serviceId) || !getService(serviceId))
+        return;
       const connected = get().services[serviceId]?.[repo] !== undefined;
       set({
-        projects: get().projects.map((x) => (x.repo === repo ? { ...x, services: [...x.services, serviceId] } : x)),
+        projects: get().projects.map((x) =>
+          x.repo === repo ? { ...x, services: [...x.services, serviceId] } : x,
+        ),
         pickerFor: null,
         expandedProject: repo,
       });
-      get().log(source, `attached ${serviceId} → ${repo}${connected ? "" : " · not connected yet (sample)"}`, "ok");
+      get().log(
+        source,
+        `attached ${serviceId} → ${repo}${connected ? "" : " · not connected yet (sample)"}`,
+        "ok",
+      );
     },
 
     detachService: (repo, serviceId, source = "touch") => {
-      set({ projects: get().projects.map((x) => (x.repo === repo ? { ...x, services: x.services.filter((id) => id !== serviceId) } : x)) });
+      set({
+        projects: get().projects.map((x) =>
+          x.repo === repo
+            ? { ...x, services: x.services.filter((id) => id !== serviceId) }
+            : x,
+        ),
+      });
       get().log(source, `detached ${serviceId} from ${repo}`, "info");
     },
 
     runTests: (repo, source = "touch") => {
       const agent = get().agents.find((a) => a.repo === repo);
       get().log(source, `run ${repo} tests`, "ok");
-      if (agent && get().bridgeMode !== "live") set({ selectedId: agent.sessionId });
+      if (agent && get().bridgeMode !== "live")
+        set({ selectedId: agent.sessionId });
       bridge.send({ type: "tests.run", repo });
     },
 
@@ -493,7 +740,12 @@ export const useDevStore = create<DevState>()((set, get) => {
       // A Herdr pane hosts the agent itself: typing there would prompt it, not run git.
       if (a.sessionId.startsWith("pane:")) return;
       echo(a.sessionId, promptFor(a.sessionId) + "git diff --stat");
-      bridge.send({ type: "term.exec", sessionId: a.sessionId, command: "git diff --stat", approved: false });
+      bridge.send({
+        type: "term.exec",
+        sessionId: a.sessionId,
+        command: "git diff --stat",
+        approved: false,
+      });
     },
   };
 });
@@ -504,14 +756,25 @@ unsubscribe = bridge.subscribe((ev) => useDevStore.getState().apply(ev));
 /* Selectors                                                                  */
 /* ------------------------------------------------------------------------- */
 
-export const selectedAgent = (s: DevState): AgentSession | undefined => s.agents.find((a) => a.sessionId === s.selectedId);
+export const selectedAgent = (s: DevState): AgentSession | undefined =>
+  s.agents.find((a) => a.sessionId === s.selectedId);
 
 /** Worst state across the dev workspace, for the core's Dev sector + rail tick. */
-export function devAttention(s: Pick<DevState, "agents" | "ci" | "pending">): Attention | null {
+export function devAttention(
+  s: Pick<DevState, "agents" | "ci" | "pending">,
+): Attention | null {
   const failed = s.agents.filter((a) => a.state === "failed").length;
-  const waiting = s.agents.filter((a) => a.state === "waiting").length + (s.pending ? 1 : 0);
+  const waiting =
+    s.agents.filter((a) => a.state === "waiting").length + (s.pending ? 1 : 0);
   const ciFailed = s.ci.some((r) => r.status === "failed");
   if (!failed && !waiting && !ciFailed) return null;
-  const parts = [failed && `${failed} failed`, waiting && `${waiting} waiting`, !failed && ciFailed && "ci ✕"].filter(Boolean);
-  return { level: failed || ciFailed ? "broken" : "attention", note: parts.join(" · ") };
+  const parts = [
+    failed && `${failed} failed`,
+    waiting && `${waiting} waiting`,
+    !failed && ciFailed && "ci ✕",
+  ].filter(Boolean);
+  return {
+    level: failed || ciFailed ? "broken" : "attention",
+    note: parts.join(" · "),
+  };
 }

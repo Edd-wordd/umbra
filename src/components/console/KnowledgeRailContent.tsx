@@ -15,7 +15,7 @@ type Timeline = {
   timeline: Array<{ id: string; kind: string; summary: string; detail?: string }>;
 };
 
-export default function KnowledgeRailContent({ openPalette }: { openPalette: (query?: string) => void }) {
+export default function KnowledgeRailContent({ openPalette, selectedBrainNodeId }: { openPalette: (query?: string) => void; selectedBrainNodeId?: string | null }) {
   const [index, setIndex] = useState<KnowledgeIndex | null>(null);
   const [timeline, setTimeline] = useState<Timeline["timeline"]>([]);
 
@@ -34,9 +34,23 @@ export default function KnowledgeRailContent({ openPalette }: { openPalette: (qu
     };
   }, []);
 
+  const vaultSelected = selectedBrainNodeId === "knowledge:vault";
+
   return (
     <>
-      <div className="mt-[20px] border-t border-line pt-[12px]">
+      {vaultSelected && (
+        <div className="mt-[20px] border-l border-active pl-3 pt-[2px]">
+          <div className="text-[9.5px] tracking-[2px] text-active">SELECTED</div>
+          <p className="mt-[6px] text-[11px] text-mid">Vault · {index?.accepted ?? 0} typed · {index?.rejected ?? 0} need structure</p>
+          <div className="mt-[8px] flex flex-wrap gap-[12px] text-[10px]">
+            <button type="button" onClick={() => openPalette("create session note")} className="text-dim hover:text-ink">session</button>
+            <button type="button" onClick={() => openPalette("create decision ")} className="text-dim hover:text-ink">decision</button>
+            <button type="button" onClick={() => openPalette("create runbook ")} className="text-dim hover:text-ink">runbook</button>
+          </div>
+        </div>
+      )}
+
+      <div className={`mt-[20px] border-t border-line pt-[12px] ${vaultSelected ? "border-l border-active pl-2" : ""}`}>
         <div className="flex justify-between text-[9.5px]">
           <span className="tracking-[2px] text-mid">VAULT</span>
           <span className="text-dim">live</span>

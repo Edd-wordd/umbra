@@ -11,7 +11,7 @@ type Approvals = {
   approvals: Array<{ id: string; actionId: string; actionLabel: string; status: string; plan: { target?: string } }>;
 };
 
-export default function LabRailContent({ openPalette }: { openPalette: (query?: string) => void }) {
+export default function LabRailContent({ openPalette, selectedBrainNodeId }: { openPalette: (query?: string) => void; selectedBrainNodeId?: string | null }) {
   const [health, setHealth] = useState<LabHealth | null>(null);
   const [approvals, setApprovals] = useState<Approvals["approvals"]>([]);
 
@@ -30,8 +30,24 @@ export default function LabRailContent({ openPalette }: { openPalette: (query?: 
     };
   }, []);
 
+  const selectedServiceId = selectedBrainNodeId?.startsWith("service:lab:") ? selectedBrainNodeId.replace("service:lab:", "") : null;
+  const selectedService = health?.results.find((result) => result.id === selectedServiceId);
+
   return (
     <>
+      {selectedService && (
+        <div className="mt-[20px] border-l border-active pl-3 pt-[2px]">
+          <div className="text-[9.5px] tracking-[2px] text-active">SELECTED</div>
+          <p className={selectedService.ok ? "mt-[6px] text-[11px] text-mid" : "mt-[6px] text-[11px] text-attention"}>
+            {selectedService.label} · {selectedService.state} · {selectedService.status ?? selectedService.error ?? "no response"}
+          </p>
+          <p className="mt-[4px] text-[10px] text-dim">{labHint(selectedService.state)}</p>
+          <div className="mt-[8px] flex gap-[12px] text-[10px]">
+            <button type="button" onClick={() => openPalette(`open ${selectedService.label}`)} className="text-dim hover:text-ink">open</button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-[20px] border-t border-line pt-[12px]">
         <div className="flex justify-between text-[9.5px]">
           <span className="tracking-[2px] text-mid">HEALTH</span>
@@ -40,11 +56,14 @@ export default function LabRailContent({ openPalette }: { openPalette: (query?: 
         <div className="mt-[6px] space-y-[6px] text-[10.5px] leading-[1.4]">
           {!health && <p className="text-dim">loading…</p>}
           {health && !health.configured && <p className="text-attention">not configured</p>}
-          {health?.results.map((result) => (
-            <p key={result.id} className={result.ok ? "text-mid" : "text-attention"}>
-              {result.label} · {result.state} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
-            </p>
-          ))}
+          {health?.results.map((result) => {
+            const selected = selectedBrainNodeId === `service:lab:${result.id}`;
+            return (
+              <p key={result.id} className={`${result.ok ? "text-mid" : "text-attention"} ${selected ? "border-l border-active pl-2 text-active" : ""}`}>
+                {result.label} · {result.state} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
+              </p>
+            );
+          })}
         </div>
       </div>
 
@@ -76,4 +95,15 @@ export default function LabRailContent({ openPalette }: { openPalette: (query?: 
       </div>
     </>
   );
+}
+
+function labHint(state: string) {
+  if (state === "unreachable") return "check IP, route, VLAN, firewall, or host power";
+  if (state === "tls_error") return "use a trusted cert or enable allowSelfSigned for this target";
+  if (state === "refused") return "host is reachable but the service port is closed";
+  if (state === "dns_error") return "check hostname and DNS resolution";
+  if (state === "timeout") return "service did not respond before timeout";
+  if (state === "auth_required") return "service is reachable and requires login";
+  if (state === "ok") return "service is reachable";
+  return "check service configuration";
 }

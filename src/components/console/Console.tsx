@@ -9,6 +9,7 @@ import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
 import BrainLegend from "../core/BrainLegend";
 import CoreStage from "../core/CoreStage";
+import SelectedBrainNodeLabel from "../core/SelectedBrainNodeLabel";
 import { useBrainVisual } from "../core/useBrainVisual";
 import BottomStrips from "./BottomStrips";
 import CommandPalette from "./CommandPalette";
@@ -137,6 +138,7 @@ export default function Console() {
   const summary = useBrainSummary();
   const visualGraph = useBrainVisual();
   const [selectedBrainNodeId, setSelectedBrainNodeId] = useState<string | null>(null);
+  const selectedBrainNode = visualGraph?.nodes.find((node) => node.id === selectedBrainNodeId);
   useBrainSummaryAttention(summary);
   const mode = useUmbra((s) => s.mode);
 
@@ -144,12 +146,13 @@ export default function Console() {
     <main className="umbra-grid fixed inset-0 select-none overflow-hidden" data-mode={mode}>
       <div className="umbra-vignette pointer-events-none absolute inset-0" />
       <CoreStage brainSummary={summary} visualGraph={visualGraph} selectedNodeId={selectedBrainNodeId} />
+      <SelectedBrainNodeLabel graph={visualGraph} selectedNodeId={selectedBrainNodeId} hidden={mode !== "idle"} />
       <BrainLegend graph={visualGraph} hidden={mode !== "idle"} selectedNodeId={selectedBrainNodeId} onSelect={setSelectedBrainNodeId} />
       <TopChrome />
       <Rails />
-      <RailPanel />
+      <RailPanel selectedBrainNodeId={selectedBrainNodeId} />
       <BottomStrips />
-      <CommandPalette />
+      <CommandPalette contextNodeId={selectedBrainNodeId} contextLabel={selectedBrainNode ? `${selectedBrainNode.label} · ${selectedBrainNode.status}` : null} />
     </main>
   );
 }
