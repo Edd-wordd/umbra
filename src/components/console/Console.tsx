@@ -17,6 +17,7 @@ import { useBrainSummary, type BrainSummary } from "./useBrainSummary";
 import RailPanel from "./RailPanel";
 import Rails from "./Rails";
 import TopChrome from "./TopChrome";
+import VoiceCommandPreview from "./VoiceCommandPreview";
 
 /** Dev helpers (V = simulate voice) are on in `pnpm dev`, or with ?dev in a build. */
 const devHelpersEnabled = () =>
@@ -141,6 +142,8 @@ export default function Console() {
   const selectedBrainNode = visualGraph?.nodes.find((node) => node.id === selectedBrainNodeId);
   useBrainSummaryAttention(summary);
   const mode = useUmbra((s) => s.mode);
+  const voice = useUmbra((s) => s.voice);
+  const voiceSim = useUmbra((s) => s.voiceSim);
 
   return (
     <main className="umbra-grid fixed inset-0 select-none overflow-hidden" data-mode={mode}>
@@ -152,6 +155,7 @@ export default function Console() {
       <Rails />
       <RailPanel selectedBrainNodeId={selectedBrainNodeId} />
       <BottomStrips />
+      <VoiceCommandPreview active={voice !== "idle" || voiceSim} contextNodeId={selectedBrainNodeId} contextLabel={selectedBrainNode ? `${selectedBrainNode.label} · ${selectedBrainNode.status}` : null} />
       <CommandPalette contextNodeId={selectedBrainNodeId} contextLabel={selectedBrainNode ? `${selectedBrainNode.label} · ${selectedBrainNode.status}` : null} />
     </main>
   );
