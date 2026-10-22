@@ -1,4 +1,4 @@
-import { getAction } from "../actions";
+import { ACTIONS, getAction } from "../actions";
 import { actionRequiresApproval } from "../actions/policy";
 import type { CommandRoute } from "./types";
 
@@ -19,6 +19,8 @@ function noteTitleArgs(prefix: RegExp) {
 }
 
 const RULES: LocalRule[] = [
+  ...(["lab", "knowledge", "dev"] as const).map((domain) => ({ id: `show-${domain}-rail`, match: new RegExp(`^(?:please )?(?:show|open)(?: me)?(?: my| the)? ${domain}(?: rail)?[.!?]?$`, "i"), actionId: `${domain}.rail.show`, confidence: 1, reason: "matched explicit rail navigation" })),
+  { id: "attention", match: /^what needs my attention[?!.]?$/i, actionId: "ops.needs.show", confidence: 1, reason: "matched attention request" },
   { id: "open-proxmox", match: /\b(open|show|launch)\b.*\bproxmox\b/i, actionId: "lab.proxmox.open", confidence: 0.95, reason: "matched open/proxmox" },
   { id: "open-adguard", match: /\b(open|show|launch)\b.*\badguard\b/i, actionId: "lab.adguard.open", confidence: 0.95, reason: "matched open/adguard" },
   { id: "open-n8n", match: /\b(open|show|launch)\b.*\bn8n\b/i, actionId: "lab.n8n.open", confidence: 0.95, reason: "matched open/n8n" },
@@ -39,6 +41,11 @@ const RULES: LocalRule[] = [
 
 export async function routeCommand(input: string): Promise<CommandRoute> {
   const trimmed = input.trim();
+  const exact = ACTIONS.find((action) => action.id === trimmed);
+  if (exact) {
+    const plan = await exact.dryRun({ source: "system", actor: "umbra", approved: false, args: {} });
+    return { input, source: "local", actionId: exact.id, confidence: 1, reason: "matched canonical action id", args: {}, action: exact, requiresApproval: actionRequiresApproval(exact), plan };
+  }
   const rule = RULES.find((candidate) => candidate.match.test(trimmed));
   if (!rule) return { input, source: "local", confidence: 0, reason: "no local rule matched", args: {}, unresolved: true };
   const action = getAction(rule.actionId);

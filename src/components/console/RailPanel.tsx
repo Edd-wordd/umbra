@@ -6,6 +6,8 @@ import { railOf, useUmbra } from "@/lib/store";
 import { formatClock } from "@/lib/time";
 import DevFocus from "./devfocus/DevFocus";
 import KnowledgeRailContent from "./KnowledgeRailContent";
+import LabRailContent from "./LabRailContent";
+import { useBrainSummary, type BrainDomainSource } from "./useBrainSummary";
 
 const TONE: Record<Tone, string> = {
   ink: "text-ink",
@@ -19,19 +21,38 @@ const TONE: Record<Tone, string> = {
 const IDLE_COLLAPSE_MS = 20_000;
 const pct = (y: number) => `${((y / 1080) * 100).toFixed(3)}%`;
 
+function fallbackSource(id: string): BrainDomainSource {
+  if (id === "knowledge" || id === "lab") return "live";
+  if (id === "dev") return "partial";
+  return "sample";
+}
+
+function SourceBadge({ source }: { source: BrainDomainSource }) {
+  const label = source === "not_configured" ? "OFFLINE" : source.toUpperCase();
+  const dot = source === "live" ? "bg-active" : source === "partial" ? "bg-attention" : source === "sample" ? "bg-dim" : "bg-broken";
+  return (
+    <span className="inline-flex items-center gap-[6px] rounded-full border border-line bg-panel-raised/60 px-[9px] py-[3px] text-[9px] tracking-[1.8px] text-dim">
+      <span className={`h-[5px] w-[5px] rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
 /**
  * The single awake rail, docked to its edge tick (not a floating window).
  * Esc, click outside, or 20s without input returns to idle.
  * The Dev rail opens the expanded Dev focus instead, which stays awake while
  * open (Esc or the DEV tick closes it).
  */
-export default function RailPanel() {
+export default function RailPanel({ selectedBrainNodeId }: { selectedBrainNodeId?: string | null }) {
   const mode = useUmbra((s) => s.mode);
   const since = useUmbra((s) => s.since);
   const toIdle = useUmbra((s) => s.toIdle);
   const openPalette = useUmbra((s) => s.openPalette);
   const paletteOpen = useUmbra((s) => s.paletteOpen);
   const id = railOf(mode);
+  const summary = useBrainSummary();
+  const domainSummary = id ? summary?.domains.find((domain) => domain.id === id) : null;
   const sticky = id === "dev";
 
   // Click / tap outside the rail (and its tick) returns to idle.
@@ -89,14 +110,12 @@ export default function RailPanel() {
         <header className="px-5 pt-[20px]">
           <div className="flex items-baseline justify-between">
             <h2 className="text-[12px] font-normal tracking-[4px] text-active">{rail.label}</h2>
-            <span className="border border-attention/50 px-[6px] py-[2px] text-[9.5px] tracking-[2px] text-attention/80">
-              SAMPLE DATA
-            </span>
+            <SourceBadge source={domainSummary?.source ?? fallbackSource(id)} />
           </div>
           <p className="mt-[8px] text-[9.5px] text-dim">touched {formatClock(new Date(since))} · esc / 20s idle to collapse</p>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
-          {id === "knowledge" ? <KnowledgeRailContent openPalette={openPalette} /> : content.sections.map((sec) => (
+          {id === "knowledge" ? <KnowledgeRailContent openPalette={openPalette} selectedBrainNodeId={selectedBrainNodeId} /> : id === "lab" ? <LabRailContent openPalette={openPalette} selectedBrainNodeId={selectedBrainNodeId} /> : content.sections.map((sec) => (
             <div key={sec.title} className="mt-[20px] border-t border-line pt-[12px]">
               <div className="flex justify-between text-[9.5px]">
                 <span className="tracking-[2px] text-mid">{sec.title}</span>
@@ -121,8 +140,8 @@ export default function RailPanel() {
         </div>
         <footer className="flex items-center justify-between border-t border-line px-5 py-[14px] text-[10px]">
           <div className="flex gap-[16px]">
-            {id === "knowledge" ? <span className="text-ghost">approved writes only</span> : content.actions.length === 0 && <span className="text-ghost">no actions yet</span>}
-            {id !== "knowledge" && content.actions.map((a) => (
+            {id === "knowledge" ? <span className="text-ghost">approved writes only</span> : id === "lab" ? <span className="text-ghost">read-only lab</span> : content.actions.length === 0 && <span className="text-ghost">no actions yet</span>}
+            {id !== "knowledge" && id !== "lab" && content.actions.map((a) => (
               <button
                 key={a.toolId}
                 type="button"

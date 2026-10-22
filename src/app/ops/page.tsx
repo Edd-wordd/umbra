@@ -99,7 +99,7 @@ export default async function OpsPage() {
           {labHealth.configured ? (
             labHealth.results.map((result) => (
               <Line key={result.id} tone={result.ok ? "cyan" : "amber"}>
-                {result.label} · {result.ok ? "ok" : "down"} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
+                {result.label} · {result.state} · {result.status ?? result.error ?? "no response"} · {result.ms}ms
               </Line>
             ))
           ) : (
@@ -209,7 +209,7 @@ export default async function OpsPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
+    <section id={title.toLowerCase().replaceAll(" ", "-")}>
       <h2 className="mb-3 border-b border-white/10 pb-2 text-xs uppercase tracking-[0.32em] text-cyan-300/70">{title}</h2>
       {children}
     </section>

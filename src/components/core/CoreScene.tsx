@@ -3,9 +3,11 @@
 import { useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { sampleLayout, type CoreLayout, type DomainId } from "@/lib/graph";
+import type { BrainVisualGraph } from "@/lib/brain/visual";
 import type { VoiceState } from "@/lib/store";
 import { voiceLevel } from "@/lib/voice/level";
 import { CORE_HOME, coreFocusView } from "../console/devfocus/layout";
+import type { CoreBrainState } from "./brain-state";
 import { CoreRuntime, type SectorAttention } from "./runtime";
 
 export interface CoreSceneProps {
@@ -25,11 +27,16 @@ export interface CoreSceneProps {
   focus?: boolean;
   /** Dev focus detail panel open (core moves further right and shrinks). */
   focusOpen?: boolean;
+  /** Visual-ready brain state from /api/brain/summary. */
+  brain?: CoreBrainState;
+  /** Active semantic graph for the core visual. */
+  visualGraph?: BrainVisualGraph;
+  selectedNodeId?: string;
 }
 
 const IDLE_FPS = 10;
 
-export default function CoreScene({ layout = sampleLayout, litDomain, voice, level, reducedMotion, attention, focus = false, focusOpen = false }: CoreSceneProps) {
+export default function CoreScene({ layout = sampleLayout, litDomain, voice, level, reducedMotion, attention, focus = false, focusOpen = false, brain, visualGraph, selectedNodeId }: CoreSceneProps) {
   const invalidate = useThree((s) => s.invalidate);
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
@@ -46,9 +53,10 @@ export default function CoreScene({ layout = sampleLayout, litDomain, voice, lev
 
   // Any state change: render until the transition settles.
   useEffect(() => {
+    runtime.setVisualGraph(visualGraph ?? null, layout, selectedNodeId);
     runtime.wake();
     invalidate();
-  }, [runtime, litIndex, voice, level, reducedMotion, attn, view, invalidate]);
+  }, [runtime, litIndex, voice, level, reducedMotion, attn, view, brain, visualGraph, selectedNodeId, layout, invalidate]);
 
   // Throttled loop (frameloop="demand"): ~10 fps breathe tick at idle, full
   // rate while transitioning or speaking, nothing while the tab is hidden,
@@ -72,7 +80,7 @@ export default function CoreScene({ layout = sampleLayout, litDomain, voice, lev
   useFrame((state, delta) => {
     const lvl = speaking ? (level ?? (reducedMotion ? 0.5 : voiceLevel.current)) : 0;
     runtime.update(
-      { litIndex, voiceOn: voice !== "idle", speaking, level: lvl, reducedMotion, attention: attn, view },
+      { litIndex, voiceOn: voice !== "idle", speaking, level: lvl, reducedMotion, attention: attn, view, brainEnergy: brain?.energy, brainStatus: brain?.status },
       state.clock.elapsedTime,
       delta,
       state.camera.zoom * state.gl.getPixelRatio(),

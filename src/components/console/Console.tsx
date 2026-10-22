@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { connectHelper } from "@/lib/dev/live";
 import { devAttention, useDevStore } from "@/lib/dev/store";
 import { streamSampleEvents } from "@/lib/mock/events";
 import { DOMAINS, type DomainId } from "@/lib/graph";
 import { useUmbra } from "@/lib/store";
 import { startVoiceSimulation } from "@/lib/voice/level";
+import BrainLegend from "../core/BrainLegend";
 import CoreStage from "../core/CoreStage";
+import SelectedBrainNodeLabel from "../core/SelectedBrainNodeLabel";
+import { useBrainVisual } from "../core/useBrainVisual";
 import BottomStrips from "./BottomStrips";
 import CommandPalette from "./CommandPalette";
+import { useBrainSummary, type BrainSummary } from "./useBrainSummary";
 import RailPanel from "./RailPanel";
 import Rails from "./Rails";
 import TopChrome from "./TopChrome";
+import VoiceCommandPreview from "./VoiceCommandPreview";
 
 /** Dev helpers (V = simulate voice) are on in `pnpm dev`, or with ?dev in a build. */
 const devHelpersEnabled = () =>
@@ -87,34 +92,21 @@ function useDevAttention() {
   }, []);
 }
 
-type BrainSummary = {
-  domains: Array<{ id: string; status: string; needs: number; notes: string[] }>;
-};
-
 /** Maps the server brain summary into the existing core sector attention. */
-function useBrainSummaryAttention() {
+function useBrainSummaryAttention(summary: BrainSummary | null) {
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/brain/summary", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((summary: BrainSummary | null) => {
-        if (cancelled || !summary) return;
-        for (const sector of summary.domains) {
-          if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
-          const domain = sector.id as DomainId;
-          const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
-          if (sector.status === "blocked" || sector.status === "critical") {
-            useUmbra.getState().setAttention(domain, { level: "broken", note });
-          } else if (!["silent", "fyi"].includes(sector.status)) {
-            useUmbra.getState().setAttention(domain, { level: "attention", note });
-          }
-        }
-      })
-      .catch(() => null);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!summary) return;
+    for (const sector of summary.domains) {
+      if (!(DOMAINS as readonly string[]).includes(sector.id)) continue;
+      const domain = sector.id as DomainId;
+      const note = sector.notes[1] ?? sector.notes[0] ?? sectorNote(sector.id, sector.needs);
+      if (sector.status === "blocked" || sector.status === "critical") {
+        useUmbra.getState().setAttention(domain, { level: "broken", note });
+      } else if (!["silent", "fyi"].includes(sector.status)) {
+        useUmbra.getState().setAttention(domain, { level: "attention", note });
+      }
+    }
+  }, [summary]);
 }
 
 function sectorNote(domain: string, count: number) {
@@ -144,18 +136,27 @@ export default function Console() {
   useDeepLink();
   useLiveBridge();
   useDevAttention();
-  useBrainSummaryAttention();
+  const summary = useBrainSummary();
+  const visualGraph = useBrainVisual();
+  const [selectedBrainNodeId, setSelectedBrainNodeId] = useState<string | null>(null);
+  const selectedBrainNode = visualGraph?.nodes.find((node) => node.id === selectedBrainNodeId);
+  useBrainSummaryAttention(summary);
   const mode = useUmbra((s) => s.mode);
+  const voice = useUmbra((s) => s.voice);
+  const voiceSim = useUmbra((s) => s.voiceSim);
 
   return (
     <main className="umbra-grid fixed inset-0 select-none overflow-hidden" data-mode={mode}>
       <div className="umbra-vignette pointer-events-none absolute inset-0" />
-      <CoreStage />
+      <CoreStage brainSummary={summary} visualGraph={visualGraph} selectedNodeId={selectedBrainNodeId} />
+      <SelectedBrainNodeLabel graph={visualGraph} selectedNodeId={selectedBrainNodeId} hidden={mode !== "idle"} />
+      <BrainLegend graph={visualGraph} hidden={mode !== "idle"} selectedNodeId={selectedBrainNodeId} onSelect={setSelectedBrainNodeId} />
       <TopChrome />
       <Rails />
-      <RailPanel />
+      <RailPanel selectedBrainNodeId={selectedBrainNodeId} />
       <BottomStrips />
-      <CommandPalette />
+      <VoiceCommandPreview active={voice !== "idle" || voiceSim} contextNodeId={selectedBrainNodeId} contextLabel={selectedBrainNode ? `${selectedBrainNode.label} · ${selectedBrainNode.status}` : null} />
+      <CommandPalette contextNodeId={selectedBrainNodeId} contextLabel={selectedBrainNode ? `${selectedBrainNode.label} · ${selectedBrainNode.status}` : null} />
     </main>
   );
 }
