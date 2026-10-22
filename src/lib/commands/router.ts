@@ -19,6 +19,8 @@ function noteTitleArgs(prefix: RegExp) {
 }
 
 const RULES: LocalRule[] = [
+  ...(["lab", "knowledge", "dev"] as const).map((domain) => ({ id: `show-${domain}-rail`, match: new RegExp(`^(?:please )?(?:show|open)(?: me)?(?: my| the)? ${domain}(?: rail)?[.!?]?$`, "i"), actionId: `${domain}.rail.show`, confidence: 1, reason: "matched explicit rail navigation" })),
+  { id: "attention", match: /^what needs my attention[?!.]?$/i, actionId: "ops.needs.show", confidence: 1, reason: "matched attention request" },
   { id: "open-proxmox", match: /\b(open|show|launch)\b.*\bproxmox\b/i, actionId: "lab.proxmox.open", confidence: 0.95, reason: "matched open/proxmox" },
   { id: "open-adguard", match: /\b(open|show|launch)\b.*\badguard\b/i, actionId: "lab.adguard.open", confidence: 0.95, reason: "matched open/adguard" },
   { id: "open-n8n", match: /\b(open|show|launch)\b.*\bn8n\b/i, actionId: "lab.n8n.open", confidence: 0.95, reason: "matched open/n8n" },

@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import VoiceMicrophone from "./VoiceMicrophone";
+import { useRouter } from "next/navigation";
+import { useUmbra } from "@/lib/store";
+import { RAIL_NAVIGATION, OPS_NAVIGATION } from "@/lib/commands/navigation";
 
 type VoiceRoute = {
   transcript: string;
@@ -14,6 +17,7 @@ export default function VoiceCommandPreview({ active, contextNodeId, contextLabe
 }
 
 function VoiceSession({ contextNodeId, contextLabel }: { contextNodeId?: string | null; contextLabel?: string | null }) {
+  const router = useRouter();
   const [text, setText] = useState("");
   const [result, setResult] = useState<VoiceRoute | null>(null);
 
@@ -48,6 +52,12 @@ function VoiceSession({ contextNodeId, contextLabel }: { contextNodeId?: string 
     const next: VoiceRoute = await response.json();
     if (request !== sequence.current) return;
     setResult(next);
+    const actionId = next.route?.actionId;
+    if (actionId && !next.route?.unresolved && !next.route?.requiresApproval && next.route!.confidence >= 0.85) {
+      const rail = RAIL_NAVIGATION[actionId as keyof typeof RAIL_NAVIGATION];
+      if (rail) useUmbra.getState().wakeRail(rail);
+      else if (OPS_NAVIGATION[actionId]) router.push(OPS_NAVIGATION[actionId]);
+    }
     if (spoken && window.speechSynthesis) {
       const voice = window.speechSynthesis.getVoices().find((candidate) => candidate.localService && candidate.lang.startsWith("en"));
       if (voice) {
